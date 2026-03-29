@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Moje mieszkanie{% endblock %}
+{% block page_title %}Witaj, {{ tenant.full_name.split()[0] }}{% endblock %}
+{% block content %}
+
+{% if request.query_params.get('success') %}
+<div class="alert alert-success">✓ Odczyt został zapisany pomyślnie.</div>
+{% endif %}
+{% if error is defined and error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+<!-- Current billing status -->
+{% set latest_bill = billing_periods[0] if billing_periods else None %}
+{% if latest_bill %}
+<div class="portal-status-card {{ 'status-overdue' if latest_bill.status.value == 'overdue' else ('status-paid' if latest_bill.status.value == 'paid' else 'status-pending') }}">
+  <div class="status-icon">
+    {% if latest_bill.status.value == 'paid' %}✅
+    {% elif latest_bill.status.value == 'overdue' %}⚠️
+    {% else %}📄{% endif %}
+  </div>
+  <div class="status-body">
+    <div class="status-title">
+      {% if latest_bill.status.value == 'paid' %}Rozliczenie opłacone
+      {% elif latest_bill.status.value == 'overdue' %}Zaległość w płatności
+      {% elif latest_bill.status.value == 'issued' %}Oczekuje na płatność
+      {% else %}Rozliczenie w przygotowaniu{% endif %}
+    </div>
+    <div class="status-detail">
+      {{ latest_bill.period_start.strftime('%m.%Y') }} · {{ "%.2f"|format(latest_bill.total_amount) }} zł
+      {% if latest_bill.status.value != 'paid' %} · termin: {{ latest_bill.due_date.strftime('%d.%m.%Y') }}{% endif %}
+    </div>
+  </div>
+  {% if latest_bill.status.value in ['issued','overdue'] %}
+  <div class="status-amount text-error">
+    {{ "%.2f"|format(latest_bill.total_amount - latest_bill.amount_paid) }} zł do zapłaty
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Meter readings section - mobile-first design -->
+<section class="portal-section">
+  <h2 class="section-title">📊 Podaj odczyt licznika</h2>
+  <div class="meter-cards">
+    {% for field, (icon, label, unit) in UTILITY_LABELS.items() %}
+    {% if field in last_readings %}
+    {% set last = last_readings[field] %}
+    <div class="meter-card">
+      <div class="meter-card-header">
+        <span class="meter-icon">{{ icon }}</span>
+        <span class="meter-label">{{ label }}</span>
+      </div>
+      {% if last %}
+      <div class="meter-prev">
+        <span class="meter-prev-label">Poprzedni odczyt</span>
+        <span class="meter-prev-value">{{ "%.3f"|format(last.reading_value) }} {{ unit }}</span>
+        <span class="meter-prev-date">{{ last.reading_date.strftime('%d.%m.%Y') }}</span>
+      </div>
+      {% endif %}
+      <form method="post" action="/portal/reading" enctype="multipart/form-data">
+        <input type="hidden" name="utility_type" value="{{ field }}">
+        <div class="form-group">
+          <label class="sr-only">Nowy stan licznika ({{ unit }})</label>
+          <div class="meter-input-wrap">
+            <input type="number" name="reading_value" required step="0.001"
+                   min="{{ last.reading_value if last else 0 }}"
+                   inputmode="decimal" placeholder="{{ "%.3f"|format(last.reading_value) if last else '0.000' }}"
+                   class="meter-input" autocomplete="off">
+            <span class="meter-unit">{{ unit }}</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Data odczytu</label>
+          <input type="date" name="reading_date" required value="{{ today.isoformat() }}">
+        </div>
+        <div class="form-group">
+          <label>Notatki (opcjonalnie)</label>
+          <input type="text" name="notes" placeholder="Opcjonalnie...">
+        </div>
+        <button type="submit" class="btn btn-primary btn-full meter-submit">
+          Wyślij odczyt {{ icon }}
+        </button>
+      </form>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</section>
+
+<!-- Reading history -->
+{% if readings %}
+<section class="portal-section">
+  <h2 class="section-title">📋 Historia odczytów</h2>
+  <div class="card">
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead><tr><th>Data</th><th>Medium</th><th>Stan</th><th>Zużycie</th></tr></thead>
+      <tbody>
+        {% for r in readings[:15] %}
+        <tr>
+          <td>{{ r.reading_date.strftime('%d.%m.%Y') }}</td>
+          <td>
+            {% set ut = r.utility_type.value %}
+            {% if ut == 'water' %}💧 Woda
+            {% elif ut == 'electricity' %}⚡ Prąd
+            {% elif ut == 'gas' %}🔥 Gaz
+            {% elif ut == 'trash' %}🗑️ Śmieci
+            {% else %}🌡️ Ogrzewanie{% endif %}
+          </td>
+          <td class="num">{{ "%.3f"|format(r.reading_value) }}</td>
+          <td class="num">{{ ("%.3f"|format(r.consumption)) if r.consumption is not none else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- Billing history -->
+{% if billing_periods %}
+<section class="portal-section">
+  <h2 class="section-title">💰 Historia rozliczeń</h2>
+  <div class="billing-history">
+    {% for bp in billing_periods[:12] %}
+    <div class="billing-history-row">
+      <div class="bh-period">{{ bp.period_start.strftime('%B %Y') }}</div>
+      <div class="bh-amount">{{ "%.2f"|format(bp.total_amount) }} zł</div>
+      <div class="bh-status">
+        {% if bp.status.value == 'paid' %}<span class="badge badge-success">Opłacone</span>
+        {% elif bp.status.value == 'overdue' %}<span class="badge badge-error">Zaległe</span>
+        {% elif bp.status.value == 'issued' %}<span class="badge badge-warning">Do zapłaty</span>
+        {% else %}<span class="badge badge-neutral">Szkic</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

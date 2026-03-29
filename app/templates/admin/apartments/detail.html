@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+{% block title %}{{ apartment.address }} — Zarządzanie Najmem{% endblock %}
+{% block page_title %}
+<nav class="breadcrumb">
+  <a href="/admin/apartments">Lokale</a>
+  <i data-lucide="chevron-right" width="14" height="14"></i>
+  <span>{{ apartment.address }}</span>
+</nav>
+{% endblock %}
+{% block topbar_actions %}
+<a href="/admin/apartments/{{ apartment.id }}/edit" class="btn btn-ghost btn-sm">
+  <i data-lucide="settings" width="14" height="14"></i> Edytuj lokal
+</a>
+{% endblock %}
+{% block content %}
+<div class="detail-grid">
+  <!-- Tenant & Contract info -->
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">Najemca i umowa</h2>
+      <button class="btn btn-ghost btn-sm" onclick="togglePanel('tenantForm')">
+        <i data-lucide="user-plus" width="14" height="14"></i> {{ 'Nowy najemca' if not tenant else 'Zmień najemcę' }}
+      </button>
+    </div>
+    {% if tenant %}
+    <div class="info-grid">
+      <div class="info-item"><span class="info-label">Imię i nazwisko</span><span class="info-value">{{ tenant.full_name }}</span></div>
+      <div class="info-item"><span class="info-label">Email</span><span class="info-value">{{ tenant.email or '—' }}</span></div>
+      <div class="info-item"><span class="info-label">Telefon</span><span class="info-value">{{ tenant.phone or '—' }}</span></div>
+      <div class="info-item"><span class="info-label">Czynsz</span><span class="info-value strong">{{ "%.2f"|format(tenant.rent_amount) }} zł/mies.</span></div>
+      <div class="info-item"><span class="info-label">Termin płatności</span><span class="info-value">do {{ tenant.payment_due_day }}. każdego miesiąca</span></div>
+      <div class="info-item"><span class="info-label">Liczba osób</span><span class="info-value">{{ tenant.occupants }} os. (śmieci)</span></div>
+      <div class="info-item"><span class="info-label">Zaliczka na wodę</span><span class="info-value">{{ "%.2f"|format(tenant.water_advance) }} zł/mies.</span></div>
+      <div class="info-item"><span class="info-label">Umowa</span>
+        <span class="info-value">
+          {% if tenant.contract_type.value == 'fixed' %}Na czas określony
+          {% else %}Na czas nieokreślony{% endif %}
+          {{ '(do ' + tenant.contract_end.strftime('%d.%m.%Y') + ')' if tenant.contract_end else '' }}
+        </span>
+      </div>
+      <div class="info-item"><span class="info-label">Od</span><span class="info-value">{{ tenant.contract_start.strftime('%d.%m.%Y') }}</span></div>
+    </div>
+    {% if magic_link %}
+    <div class="magic-link-box">
+      <div class="magic-link-label"><i data-lucide="link" width="14" height="14"></i> Link dla najemcy</div>
+      <div class="magic-link-url" id="magicLinkUrl">{{ request.base_url }}magic/{{ tenant.user.magic_link_token if tenant.user else '' }}</div>
+      <div class="magic-link-actions">
+        <button class="btn btn-ghost btn-sm" onclick="copyMagicLink()">
+          <i data-lucide="copy" width="14" height="14"></i> Kopiuj
+        </button>
+        <form action="/admin/apartments/{{ apartment.id }}/magic-link/regenerate" method="post" style="display:inline">
+          <button type="submit" class="btn btn-ghost btn-sm">
+            <i data-lucide="refresh-cw" width="14" height="14"></i> Odnów link
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty-state small">
+      <i data-lucide="user" width="24" height="24"></i>
+      <p>Brak aktywnego najemcy</p>
+    </div>
+    {% endif %}
+    <!-- Tenant form (hidden) -->
+    <div id="tenantForm" class="collapsible-panel" style="display:none">
+      <hr class="divider">
+      <h3 class="panel-title">{{ 'Dodaj nowego najemcę' if not tenant else 'Zmień najemcę' }}</h3>
+      <form method="post" action="/admin/apartments/{{ apartment.id }}/tenant/{{ 'edit' if tenant else 'new' }}">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Imię i nazwisko *</label>
+            <input type="text" name="full_name" required placeholder="Jan Kowalski" value="{{ tenant.full_name if tenant else '' }}">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" name="email" placeholder="jan@example.com" value="{{ tenant.email if tenant else '' }}">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Telefon</label>
+            <input type="tel" name="phone" placeholder="+48 600 000 000" value="{{ tenant.phone if tenant else '' }}">
+          </div>
+          <div class="form-group">
+            <label>Czynsz (zł/mies.) *</label>
+            <input type="number" name="rent_amount" required step="0.01" min="0" placeholder="1500.00" value="{{ '%.2f'|format(tenant.rent_amount) if tenant else '' }}">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Termin płatności (dzień mies.)</label>
+            <input type="number" name="payment_due_day" value="{{ tenant.payment_due_day if tenant else 10 }}" min="1" max="31">
+          </div>
+          <div class="form-group">
+            <label>Liczba osób <small>(śmieci)</small></label>
+            <input type="number" name="occupants" value="{{ tenant.occupants if tenant else 1 }}" min="1" max="20">
+          </div>
+          <div class="form-group">
+            <label>Zaliczka na wodę (zł/mies.)</label>
+            <input type="number" name="water_advance" step="0.01" min="0"
+                   value="{{ '%.2f'|format(tenant.water_advance) if tenant else '0.00' }}" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label>Typ umowy</label>
+            <select name="contract_type">
+              <option value="indefinite"
+                {% if tenant and tenant.contract_type.value == 'indefinite' %}selected{% endif %}>
+                Na czas nieokreślony
+              </option>
+              <option value="fixed"
+                {% if tenant and tenant.contract_type.value == 'fixed' %}selected{% endif %}>
+                Na czas określony
+              </option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Data rozpoczęcia *</label>
+            <input type="date" name="contract_start" required
+       value="{{ tenant.contract_start.isoformat() if tenant else today.isoformat() }}">
+          </div>
+          <div class="form-group">
+            <label>Data zakończenia</label>
+            <input type="date" name="contract_end"
+       value="{{ tenant.contract_end.isoformat() if tenant and tenant.contract_end else '' }}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notatki</label>
+          <textarea name="notes" rows="2"></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" onclick="togglePanel('tenantForm')">Anuluj</button>
+          <button type="submit" class="btn btn-primary">Zapisz najemcę</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Media / utilities assigned -->
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">Przypisane media</h2>
+    </div>
+    <div class="media-badges">
+      <span class="media-badge {{ 'active' if apartment.has_water }}">💧 Woda</span>
+      <span class="media-badge {{ 'active' if apartment.has_electricity }}">⚡ Prąd</span>
+      <span class="media-badge {{ 'active' if apartment.has_gas }}">🔥 Gaz</span>
+      <span class="media-badge {{ 'active' if apartment.has_trash }}">🗑️ Śmieci</span>
+      <span class="media-badge {{ 'active' if apartment.has_heating }}">🌡️ Ogrzewanie</span>
+    </div>
+  </section>
+
+  <!-- Meter readings -->
+  <section class="card full-width">
+    <div class="card-header">
+      <h2 class="card-title">Odczyty liczników</h2>
+      <button class="btn btn-ghost btn-sm" onclick="togglePanel('readingForm')">
+        <i data-lucide="plus" width="14" height="14"></i> Dodaj odczyt
+      </button>
+    </div>
+    <div id="readingForm" class="collapsible-panel" style="display:none">
+      <form method="post" action="/admin/meters/{{ apartment.id }}/add">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Medium</label>
+            <select name="utility_type" required>
+              {% if apartment.has_water %}<option value="water">💧 Woda</option>{% endif %}
+              {% if apartment.has_electricity %}<option value="electricity">⚡ Prąd</option>{% endif %}
+              {% if apartment.has_gas %}<option value="gas">🔥 Gaz</option>{% endif %}
+              {% if apartment.has_trash %}<option value="trash">🗑️ Śmieci</option>{% endif %}
+              {% if apartment.has_heating %}<option value="heating">🌡️ Ogrzewanie</option>{% endif %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Data odczytu</label>
+            <input type="date" name="reading_date" required value="{{ today.isoformat() }}">
+          </div>
+          <div class="form-group">
+            <label>Stan licznika</label>
+            <input type="number" name="reading_value" required step="0.001" min="0" inputmode="decimal" placeholder="0.000">
+          </div>
+          <div class="form-group">
+            <label>Notatki</label>
+            <input type="text" name="notes" placeholder="Opcjonalnie...">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" onclick="togglePanel('readingForm')">Anuluj</button>
+          <button type="submit" class="btn btn-primary">Zapisz odczyt</button>
+        </div>
+      </form>
+      <hr class="divider">
+    </div>
+    {% if readings %}
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Medium</th>
+          <th>Stan</th>
+          <th>Zużycie</th>
+          <th>Dodał</th>
+          <th>Zdjęcie</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in readings %}
+        <tr>
+          <td>{{ r.reading_date.strftime('%d.%m.%Y') }}</td>
+          <td>
+            {% set ut = r.utility_type.value %}
+            {% if ut == 'water' %}💧 Woda
+            {% elif ut == 'electricity' %}⚡ Prąd
+            {% elif ut == 'gas' %}🔥 Gaz
+            {% elif ut == 'trash' %}🗑️ Śmieci
+            {% else %}🌡️ Ogrzewanie{% endif %}
+          </td>
+          <td class="num">{{ "%.3f"|format(r.reading_value) }}</td>
+          <td class="num">{{ ("%.3f"|format(r.consumption)) if r.consumption is not none else '—' }}</td>
+          <td class="text-faint">{{ r.submitted_by.email if r.submitted_by else 'admin' }}</td>
+          <td>
+            {% if r.photo_path %}
+              {% if r.photo_verified %}
+                <span class="badge badge-success" title="Zweryfikowane">✓ OK</span>
+              {% else %}
+                <form action="/admin/meters/{{ r.id }}/verify-photo" method="post" style="display:inline">
+                  <button type="submit" class="btn btn-ghost btn-xs">Zweryfikuj</button>
+                </form>
+              {% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td class="actions-cell">
+            <button class="btn btn-ghost btn-xs"
+                    onclick="toggleEditReading({{ r.id }}, '{{ r.reading_date.isoformat() }}', '{{ r.reading_value }}', '{{ r.notes or '' }}')"
+                    title="Edytuj">✏️</button>
+            <form action="/admin/meters/{{ r.id }}/delete" method="post" style="display:inline"
+                  onsubmit="return confirm('Usunąć ten odczyt?')">
+              <button type="submit" class="btn btn-ghost btn-xs" title="Usuń">🗑️</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty-state small"><p>Brak odczytów</p></div>
+    {% endif %}
+  </section>
+
+  <!-- Billing -->
+  <section class="card full-width">
+    <div class="card-header">
+      <h2 class="card-title">Rozliczenia</h2>
+      <a href="/admin/billing/new/{{ apartment.id }}" class="btn btn-ghost btn-sm">
+        <i data-lucide="plus" width="14" height="14"></i> Nowe rozliczenie
+      </a>
+    </div>
+    {% if billing_periods %}
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead><tr><th>Okres</th><th>Kwota</th><th>Zapłacono</th><th>Termin</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for bp in billing_periods %}
+        <tr>
+          <td>{{ bp.period_start.strftime('%d.%m.%Y') }} – {{ bp.period_end.strftime('%d.%m.%Y') }}</td>
+          <td class="num">{{ "%.2f"|format(bp.total_amount) }} zł</td>
+          <td class="num">{{ "%.2f"|format(bp.amount_paid) }} zł</td>
+          <td>{{ bp.due_date.strftime('%d.%m.%Y') }}</td>
+          <td>
+            {% if bp.status.value == 'paid' %}<span class="badge badge-success">Opłacone</span>
+            {% elif bp.status.value == 'overdue' %}<span class="badge badge-error">Zaległe</span>
+            {% elif bp.status.value == 'issued' %}<span class="badge badge-warning">Wystawione</span>
+            {% else %}<span class="badge badge-neutral">Szkic</span>{% endif %}
+          </td>
+          <td><a href="/admin/billing/{{ bp.id }}" class="btn btn-ghost btn-sm">Otwórz →</a></td>
+          <td><form action="/admin/billing/{{ bp.id }}/delete" method="post" style="display:inline"
+                onsubmit="return confirm('Usunąć rozliczenie za {{ bp.period_start.strftime('%m.%Y') }}?')">
+            <button type="submit" class="btn btn-ghost btn-sm" title="Usuń">🗑️</button>
+          </form></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty-state small"><p>Brak rozliczeń</p></div>
+    {% endif %}
+  </section>
+</div>
+
+  <!-- Inline edit reading form (hidden) -->
+  <div id="editReadingModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+    <div class="card" style="width:400px; max-width:95vw; padding:var(--space-6);">
+      <h3 style="margin-bottom:var(--space-4)">Edytuj odczyt</h3>
+      <form id="editReadingForm" method="post">
+        <div class="form-group">
+          <label>Data odczytu</label>
+          <input type="date" name="reading_date" id="editReadingDate" required>
+        </div>
+        <div class="form-group">
+          <label>Stan licznika</label>
+          <input type="number" name="reading_value" id="editReadingValue" required step="0.001" min="0">
+        </div>
+        <div class="form-group">
+          <label>Notatki</label>
+          <input type="text" name="notes" id="editReadingNotes">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" onclick="closeEditReading()">Anuluj</button>
+          <button type="submit" class="btn btn-primary">Zapisz</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+function togglePanel(id) {
+  const el = document.getElementById(id);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function copyMagicLink() {
+  const url = document.getElementById('magicLinkUrl')?.textContent;
+  if (url) navigator.clipboard.writeText(url.trim()).then(() => alert('Link skopiowany!'));
+}
+
+function toggleEditReading(id, date, value, notes) {
+  document.getElementById('editReadingForm').action = '/admin/meters/' + id + '/edit';
+  document.getElementById('editReadingDate').value = date;
+  document.getElementById('editReadingValue').value = value;
+  document.getElementById('editReadingNotes').value = notes;
+  const modal = document.getElementById('editReadingModal');
+  modal.style.display = 'flex';
+}
+function closeEditReading() {
+  document.getElementById('editReadingModal').style.display = 'none';
+}
+document.getElementById('editReadingModal')?.addEventListener('click', function(e) {
+  if (e.target === this) closeEditReading();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+{% block title %}Stawki mediów{% endblock %}
+{% block page_title %}Stawki mediów{% endblock %}
+{% block content %}
+
+<!-- NAV TABS -->
+<div class="tab-nav" style="margin-bottom:var(--space-6)">
+  <a href="#simple" class="tab-link active" onclick="showTab('simple',this)">Woda / Śmieci / Ogrzewanie</a>
+  <a href="#electricity" class="tab-link" onclick="showTab('electricity',this)">⚡ Prąd — składowe</a>
+  <a href="#gas" class="tab-link" onclick="showTab('gas',this)">🔥 Gaz — składowe</a>
+</div>
+
+<!-- ============ TAB: PROSTE STAWKI ============ -->
+<div id="tab-simple">
+<div class="content-grid-2">
+  <section class="card">
+    <div class="card-header"><h2 class="card-title">Dodaj stawkę (woda / śmieci / ogrzewanie)</h2></div>
+    <form method="post" action="/admin/rates/new">
+      <div class="form-group">
+        <label>Medium</label>
+        <select name="utility_type" id="utilityTypeSelect" onchange="updateUnit(this)">
+          <option value="water">💧 Woda</option>
+          <option value="trash">🗑️ Śmieci</option>
+          <option value="heating">🌡️ Ogrzewanie</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Stawka (zł/jednostkę)</label>
+        <input type="number" name="rate_per_unit" required step="0.0001" min="0" placeholder="0.0000" inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <label>Jednostka</label>
+        <input type="text" name="unit_label" id="unitLabel" value="m³" placeholder="m³, os./mies., GJ" required>
+      </div>
+      <div class="form-group">
+        <label>Obowiązuje od</label>
+        <input type="date" name="valid_from" required value="{{ today.isoformat() }}">
+      </div>
+      <div class="form-group">
+        <label>Notatki (np. numer faktury)</label>
+        <input type="text" name="notes" placeholder="Faktura z dn. 2026-01-01">
+      </div>
+      <div class="form-group">
+        <label>Lokal (opcjonalnie — brak = stawka globalna)</label>
+        <select name="apartment_id">
+          <option value="">🌐 Globalna (dla wszystkich lokali)</option>
+          {% for apt in apartments %}
+          <option value="{{ apt.id }}">{{ apt.address }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Dodaj stawkę</button>
+    </form>
+  </section>
+  <section class="card">
+    <div class="card-header"><h2 class="card-title">Historia stawek</h2></div>
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead><tr><th>Medium</th><th>Lokal</th><th>Stawka</th><th>Jednostka</th><th>Od</th><th>Do</th></tr></thead
+      <tbody>
+        {% for r in rates %}
+        <tr class="{{ 'row-current' if r.valid_to is none }}">
+          <td>
+            {% set t = r.utility_type.value %}
+            {% if t == 'water' %}💧 Woda
+            {% elif t == 'trash' %}🗑️ Śmieci
+            {% else %}🌡️ Ogrzewanie{% endif %}
+          </td>
+          <td class="text-faint">
+            {% if r.apartment %}
+              {{ r.apartment.address }}
+            {% else %}
+              <span class="badge">Globalna</span>
+            {% endif %}
+          </td>
+          <td class="num">{{ "%.4f"|format(r.rate_per_unit) }} zł</td>
+          <td>{{ r.unit_label }}</td>
+          <td>{{ r.valid_from.strftime('%d.%m.%Y') }}</td>
+
+          <td>
+              {% if r.valid_to %}
+                {{ r.valid_to.strftime('%d.%m.%Y') }}
+              {% else %}
+                <span class="badge badge-success">Aktualna</span>
+              {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="empty-cell">Brak stawek.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+</div>
+</div>
+
+<!-- ============ TAB: PRĄD ============ -->
+<div id="tab-electricity" style="display:none">
+<div class="content-grid-2">
+  <section class="card">
+    <div class="card-header"><h2 class="card-title">⚡ Nowe składowe prądu</h2></div>
+    <p class="text-muted" style="margin-bottom:var(--space-4);font-size:var(--text-sm)">
+      Przepisz wartości z faktury od dostawcy. Obowiązuje od podanej daty.
+    </p>
+    <form method="post" action="/admin/rates/electricity/new">
+      <div class="form-group">
+        <label>Obowiązuje od</label>
+        <input type="date" name="valid_from" required value="{{ today.isoformat() }}">
+      </div>
+      <hr class="divider">
+      <p class="section-subtitle">Sprzedaż energii</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Stawka zmienna całodobowa (zł/kWh)</label>
+          <input type="number" name="var_rate" required step="0.000001" min="0" placeholder="0.4527" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Opłata za dodatkowy cykl handlowy (zł/mies.)</label>
+          <input type="number" name="extra_trade_cycle" required step="0.0001" min="0" placeholder="6.10" inputmode="decimal">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Stawka stała ceny (zł/mies.)</label>
+        <input type="number" name="fixed_price" required step="0.0001" min="0" placeholder="25.61" inputmode="decimal">
+      </div>
+      <hr class="divider">
+      <p class="section-subtitle">Usługa dystrybucji</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Składnik stały stawki sieciowej (zł/mies.)</label>
+          <input type="number" name="dist_fixed" required step="0.0001" min="0" placeholder="7.38" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Opłata przejściowa (zł/mies.)</label>
+          <input type="number" name="transition_fee" required step="0.000001" min="0" placeholder="0.10" inputmode="decimal">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Opłata abonamentowa (zł/mies.)</label>
+          <input type="number" name="abonament" required step="0.0001" min="0" placeholder="0.38" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Opłata mocowa (zł/mies.)</label>
+          <input type="number" name="power_fee" required step="0.0001" min="0" placeholder="10.31" inputmode="decimal">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Stawka jakościowa (zł/kWh)</label>
+          <input type="number" name="quality_rate" required step="0.000001" min="0" placeholder="0.0331" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Składnik zmienny stawki sieciowej (zł/kWh)</label>
+          <input type="number" name="dist_variable" required step="0.000001" min="0" placeholder="0.2464" inputmode="decimal">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Opłata OZE (zł/kWh)</label>
+          <input type="number" name="oze_rate" required step="0.000001" min="0" placeholder="0.0073" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Opłata kogeneracyjna (zł/kWh)</label>
+          <input type="number" name="cogen_rate" required step="0.000001" min="0" placeholder="0.003" inputmode="decimal">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notatki (np. numer faktury)</label>
+        <input type="text" name="notes" placeholder="Faktura PGE z dn. 2026-01-01">
+      </div>
+      <div class="form-group">
+        <label>Lokal (opcjonalnie — brak = stawka globalna)</label>
+        <select name="apartment_id">
+          <option value="">🌐 Globalna (dla wszystkich lokali)</option>
+          {% for apt in apartments %}
+          <option value="{{ apt.id }}">{{ apt.address }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Zapisz składowe prądu</button>
+    </form>
+  </section>
+  <section class="card">
+    <div class="card-header"><h2 class="card-title">Historia składowych prądu</h2></div>
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Od</th><th>Do</th>
+          <th>Lokal</th>
+          <th title="stawka zmienna">Zm.</th>
+          <th title="stawka stała ceny + cykl handlowy">Stała sp.</th>
+          <th title="składniki dystrybucji stałe">Dystr.stała</th>
+          <th title="składniki zmienne dystrybucji">Dystr.zm.</th>
+          <th>Notatki</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in electricity_list %}
+        <tr class="{{ 'row-current' if e.valid_to is none }}">
+          <td>{{ e.valid_from.strftime('%d.%m.%Y') }}</td>
+          <td>{% if e.valid_to %}{{ e.valid_to.strftime('%d.%m.%Y') }}{% else %}<span class="badge badge-success">Aktualna</span>{% endif %}</td>
+          <td class="text-faint">
+            {% if e.apartment %}
+              {{ e.apartment.address }}
+            {% else %}
+              <span class="badge">Globalna</span>
+            {% endif %}
+          </td>
+          <td class="num">{{ "%.6f"|format(e.var_rate) }}</td>
+          <td class="num">{{ "%.4f"|format(e.fixed_price + e.extra_trade_cycle) }}</td>
+          <td class="num">{{ "%.4f"|format(e.dist_fixed + e.transition_fee + e.abonament + e.power_fee) }}</td>
+          <td class="num">{{ "%.6f"|format(e.quality_rate + e.dist_variable + e.oze_rate + e.cogen_rate) }}</td>
+          <td class="text-faint">{{ e.notes or "—" }}</td>
+          <td><a class="btn btn-ghost btn-sm" href="/admin/rates/electricity/{{ e.id }}/edit">Edytuj</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="empty-cell">Brak składowych. Dodaj pierwsze.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <details style="margin-top:var(--space-4)">
+      <summary class="text-muted" style="cursor:pointer;font-size:var(--text-sm)">ℹ️ Formuła kalkulacji prądu</summary>
+      <div style="font-size:var(--text-xs);margin-top:var(--space-3);color:var(--color-text-muted);line-height:1.8">
+        <strong>Sprzedaż:</strong> (stawka_zmienna × kWh) + stawka_stała + cykl_handlowy<br>
+        <strong>Dystrybucja:</strong> (jakościowa + sieciowa_zm + OZE + kogeneracja) × kWh + stałe_mies.<br>
+        <strong>Razem = Sprzedaż + Dystrybucja</strong>
+      </div>
+    </details>
+  </section>
+</div>
+</div>
+
+<!-- ============ TAB: GAZ ============ -->
+<div id="tab-gas" style="display:none">
+<div class="content-grid-2">
+  <section class="card">
+    <div class="card-header"><h2 class="card-title">🔥 Nowe składowe gazu</h2></div>
+    <p class="text-muted" style="margin-bottom:var(--space-4);font-size:var(--text-sm)">
+      Przepisz wartości z faktury myORLEN. Zużycie w m³ jest przeliczane na kWh przez współczynnik konwersji.
+    </p>
+    <form method="post" action="/admin/rates/gas/new">
+      <div class="form-group">
+        <label>Obowiązuje od</label>
+        <input type="date" name="valid_from" required value="{{ today.isoformat() }}">
+      </div>
+      <hr class="divider">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Opłata abonamentowa (zł/mies.)</label>
+          <input type="number" name="abonament" required step="0.0001" min="0" placeholder="8.81" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Współczynnik konwersji m³→kWh</label>
+          <input type="number" name="conv_factor" required step="0.000001" min="0" placeholder="11.438" inputmode="decimal">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cena paliwa gazowego (zł/kWh)</label>
+          <input type="number" name="gas_price_per_kwh" required step="0.000001" min="0" placeholder="0.20426" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>VAT (%)</label>
+          <input type="number" name="vat_pct" required step="0.01" min="0" max="100" placeholder="23" inputmode="decimal">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Dystrybucyjna stała (zł/mies.)</label>
+          <input type="number" name="dist_fixed" required step="0.0001" min="0" placeholder="14.44" inputmode="decimal">
+        </div>
+        <div class="form-group">
+          <label>Dystrybucyjna zmienna (zł/kWh)</label>
+          <input type="number" name="dist_variable" required step="0.000001" min="0" placeholder="0.06766" inputmode="decimal">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notatki (np. numer faktury)</label>
+        <input type="text" name="notes" placeholder="Faktura myORLEN z dn. 2026-01-01">
+      </div>
+      <div class="form-group">
+        <label>Lokal (opcjonalnie — brak = stawka globalna)</label>
+        <select name="apartment_id">
+          <option value="">🌐 Globalna (dla wszystkich lokali)</option>
+          {% for apt in apartments %}
+          <option value="{{ apt.id }}">{{ apt.address }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Zapisz składowe gazu</button>
+    </form>
+  </section>
+  <section class="card">
+    <div class="card-header"><h2 class="card-title">Historia składowych gazu</h2></div>
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Od</th><th>Do</th>
+          <th>Lokal</th>
+          <th title="współczynnik konwersji">Conv.</th>
+          <th title="cena paliwa zł/kWh">Cena/kWh</th>
+          <th title="dystrybucja stała">Dystr.stała</th>
+          <th title="dystrybucja zmienna">Dystr.zm.</th>
+          <th>VAT</th><th>Notatki</th><th></th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for g in gas_list %}
+        <tr class="{{ 'row-current' if g.valid_to is none }}">
+                   <td>{{ g.valid_from.strftime('%d.%m.%Y') }}</td>
+          <td>{% if g.valid_to %}{{ g.valid_to.strftime('%d.%m.%Y') }}{% else %}<span class="badge badge-success">Aktualna</span>{% endif %}</td>
+          <td class="text-faint">
+            {% if g.apartment %}
+              {{ g.apartment.address }}
+            {% else %}
+              <span class="badge">Globalna</span>
+            {% endif %}
+          </td>
+          <td class="num">{{ "%.4f"|format(g.conv_factor) }}</td>
+          <td class="num">{{ "%.6f"|format(g.gas_price_per_kwh) }}</td>
+          <td class="num">{{ "%.4f"|format(g.dist_fixed) }}</td>
+          <td class="num">{{ "%.6f"|format(g.dist_variable) }}</td>
+          <td class="num">{{ "%.0f"|format(g.vat_pct) }}%</td>
+          <td class="text-faint">{{ g.notes or "—" }}</td>
+          <td><a class="btn btn-ghost btn-sm" href="/admin/rates/gas/{{ g.id }}/edit">Edytuj</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="empty-cell">Brak składowych. Dodaj pierwsze.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <details style="margin-top:var(--space-4)">
+      <summary class="text-muted" style="cursor:pointer;font-size:var(--text-sm)">ℹ️ Formuła kalkulacji gazu</summary>
+      <div style="font-size:var(--text-xs);margin-top:var(--space-3);color:var(--color-text-muted);line-height:1.8">
+        <strong>kWh</strong> = m³ × współczynnik_konwersji<br>
+        <strong>Netto</strong> = (kWh × cena_paliwa) + (kWh × dystr_zmienna) + dystr_stała + abonament<br>
+        <strong>VAT</strong> = Netto × VAT%<br>
+        <strong>Razem = Netto + VAT</strong>
+      </div>
+    </details>
+  </section>
+</div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+const units = {water:'m³', trash:'os./mies.', heating:'GJ'};
+function updateUnit(sel) {
+  document.getElementById('unitLabel').value = units[sel.value] || '';
+}
+function showTab(name, el) {
+  ['simple','electricity','gas'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t === name ? '' : 'none';
+  });
+  document.querySelectorAll('.tab-link').forEach(a => a.classList.remove('active'));
+  el.classList.add('active');
+  return false;
+}
+// Auto-open tab from hash
+const hash = location.hash.replace('#','');
+if (['electricity','gas'].includes(hash)) {
+  showTab(hash, document.querySelector(`.tab-link[href="#${hash}"]`));
+}
+</script>
+{% endblock %}

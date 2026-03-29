@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Zarządzanie Najmem{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block topbar_actions %}
+<a href="/admin/apartments/new" class="btn btn-primary btn-sm">
+  <i data-lucide="plus" width="14" height="14"></i> Nowy lokal
+</a>
+{% endblock %}
+{% block content %}
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-icon" style="background:var(--color-primary-highlight)">
+      <i data-lucide="building-2" width="20" height="20" style="color:var(--color-primary)"></i>
+    </div>
+    <div class="stat-body">
+      <div class="stat-value">{{ apartments|length }}</div>
+      <div class="stat-label">Lokale</div>
+    </div>
+  </div>
+  <div class="stat-card {% if overdue_count > 0 %}stat-card-warn{% endif %}">
+    <div class="stat-icon" style="background:var(--color-{% if overdue_count > 0 %}notification{% else %}success{% endif %}-highlight)">
+      <i data-lucide="{% if overdue_count > 0 %}alert-circle{% else %}check-circle{% endif %}" width="20" height="20" style="color:var(--color-{% if overdue_count > 0 %}notification{% else %}success{% endif %})"></i>
+    </div>
+    <div class="stat-body">
+      <div class="stat-value">{{ overdue_count }}</div>
+      <div class="stat-label">Zaległości</div>
+    </div>
+  </div>
+  {% if pending_photos > 0 %}
+  <div class="stat-card stat-card-warn">
+    <div class="stat-icon" style="background:var(--color-warning-highlight)">
+      <i data-lucide="camera" width="20" height="20" style="color:var(--color-warning)"></i>
+    </div>
+    <div class="stat-body">
+      <div class="stat-value">{{ pending_photos }}</div>
+      <div class="stat-label">Zdjęcia do weryfikacji</div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="content-grid">
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">Lokale</h2>
+      <a href="/admin/apartments" class="link-subtle">Wszystkie →</a>
+    </div>
+    <div class="apartment-list">
+      {% for apt in apartments %}
+      {% set active_tenant = apt.tenants | selectattr('is_active', 'equalto', True) | first %}
+      <a href="/admin/apartments/{{ apt.id }}" class="apartment-row">
+        <div class="apt-icon">
+          <i data-lucide="home" width="16" height="16"></i>
+        </div>
+        <div class="apt-info">
+          <div class="apt-address">{{ apt.address }}</div>
+          <div class="apt-tenant">{{ active_tenant.full_name if active_tenant else '— wolne —' }}</div>
+        </div>
+        <div class="apt-media">
+          {% if apt.has_water %}<span class="media-dot" title="Woda">💧</span>{% endif %}
+          {% if apt.has_electricity %}<span class="media-dot" title="Prąd">⚡</span>{% endif %}
+          {% if apt.has_gas %}<span class="media-dot" title="Gaz">🔥</span>{% endif %}
+        </div>
+        <div class="apt-status">
+          {% if active_tenant %}
+          <span class="badge badge-success">Wynajęte</span>
+          {% else %}
+          <span class="badge badge-neutral">Wolne</span>
+          {% endif %}
+        </div>
+        <i data-lucide="chevron-right" width="16" height="16" class="text-faint"></i>
+      </a>
+      {% else %}
+      <div class="empty-state">
+        <i data-lucide="building-2" width="32" height="32"></i>
+        <p>Brak lokali. <a href="/admin/apartments/new">Dodaj pierwszy lokal →</a></p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">Ostatnie wpłaty</h2>
+    </div>
+    {% if recent_payments %}
+    <div class="payment-list">
+      {% for p in recent_payments %}
+      <div class="payment-row">
+        <div class="payment-icon">
+          {% if p.payment_type.value == 'cash' %}<i data-lucide="banknote" width="16" height="16" style="color:var(--color-success)"></i>
+          {% elif p.payment_type.value == 'transfer' %}<i data-lucide="building-columns" width="16" height="16" style="color:var(--color-blue)"></i>
+          {% else %}<i data-lucide="git-merge" width="16" height="16" style="color:var(--color-orange)"></i>{% endif %}
+        </div>
+        <div class="payment-info">
+          <div class="payment-address">{{ p.billing_period.apartment.address if p.billing_period and p.billing_period.apartment else '—' }}</div>
+          <div class="payment-date text-faint">{{ p.payment_date.strftime('%d.%m.%Y') }}</div>
+        </div>
+        <div class="payment-amount">{{ "%.2f"|format(p.amount) }} zł</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state small">
+      <i data-lucide="receipt" width="24" height="24"></i>
+      <p>Brak wpłat</p>
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edytuj lokal' if apartment else 'Nowy lokal' }} — Zarządzanie Najmem{% endblock %}
+{% block page_title %}{{ 'Edytuj lokal' if apartment else 'Nowy lokal' }}{% endblock %}
+{% block content %}
+<div class="form-container">
+  <div class="card">
+    {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+    <form method="post" action="{{ '/admin/apartments/' + apartment.id|string + '/edit' if apartment else '/admin/apartments/new' }}">
+      <div class="form-group">
+        <label for="address">Adres lokalu *</label>
+        <input type="text" id="address" name="address" required placeholder="ul. Przykładowa 1/2, Katowice"
+               value="{{ apartment.address if apartment else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="description">Opis / notatki</label>
+        <textarea id="description" name="description" rows="3" placeholder="Dodatkowe informacje...">{{ apartment.description if apartment else '' }}</textarea>
+      </div>
+      <fieldset class="form-fieldset">
+        <legend>Przypisane media</legend>
+        <div class="checkbox-grid">
+          <label class="checkbox-label">
+            <input type="checkbox" name="has_water" value="true" {{ 'checked' if not apartment or apartment.has_water }}>
+            <span>💧 Woda</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="has_electricity" value="true" {{ 'checked' if not apartment or apartment.has_electricity }}>
+            <span>⚡ Prąd</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="has_gas" value="true" {{ 'checked' if apartment and apartment.has_gas }}>
+            <span>🔥 Gaz</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="has_trash" value="true" {{ 'checked' if not apartment or apartment.has_trash }}>
+            <span>🗑️ Śmieci</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="has_heating" value="true" {{ 'checked' if apartment and apartment.has_heating }}>
+            <span>🌡️ Ogrzewanie</span>
+          </label>
+        </div>
+      </fieldset>
+      {% if apartment %}
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" name="is_active" value="true" {{ 'checked' if apartment.is_active }}>
+          <span>Lokal aktywny</span>
+        </label>
+      </div>
+      {% endif %}
+      <div class="form-actions">
+        <a href="{{ '/admin/apartments/' + apartment.id|string if apartment else '/admin/apartments' }}" class="btn btn-ghost">Anuluj</a>
+        <button type="submit" class="btn btn-primary">{{ 'Zapisz zmiany' if apartment else 'Utwórz lokal' }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

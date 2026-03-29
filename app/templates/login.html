@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pl" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logowanie — Zarządzanie Najmem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="login-body">
+<div class="login-container">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg width="40" height="40" viewBox="0 0 32 32" fill="none" aria-label="Logo">
+        <rect x="2" y="14" width="13" height="16" rx="1.5" fill="var(--color-primary)" opacity="0.85"/>
+        <rect x="17" y="8" width="13" height="22" rx="1.5" fill="var(--color-primary)"/>
+        <path d="M14 6 L16 2 L18 6" fill="var(--color-primary)" opacity="0.5"/>
+        <rect x="6" y="18" width="5" height="5" rx="0.5" fill="white" opacity="0.7"/>
+        <rect x="21" y="13" width="5" height="5" rx="0.5" fill="white" opacity="0.7"/>
+        <rect x="21" y="21" width="5" height="5" rx="0.5" fill="white" opacity="0.7"/>
+      </svg>
+      <h1>Zarządzanie Najmem</h1>
+    </div>
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+    {% if request.query_params.get('error') == 'invalid_link' %}
+    <div class="alert alert-error">Link jest nieważny lub wygasł.</div>
+    {% endif %}
+    <form method="post" action="/login">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required autocomplete="email" placeholder="twoj@email.pl">
+      </div>
+      <div class="form-group">
+        <label for="password">Hasło</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Zaloguj się</button>
+      <p class="text-sm">
+        <a href="/forgot-password">Nie pamiętasz hasła?</a>
+      </p>
+    </form>
+    <p class="login-hint">Najemcy mogą logować się przez dedykowany link otrzymany od administratora.</p>
+  </div>
+</div>
+</body>
+</html>

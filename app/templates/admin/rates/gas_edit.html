@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Edytuj składowe gazu{% endblock %}
+{% block page_title %}Edytuj składowe gazu{% endblock %}
+{% block content %}
+<section class="card" style="max-width:var(--content-narrow)">
+  <div class="card-header">
+    <h2 class="card-title">🔥 Edycja — składowe gazu</h2>
+  </div>
+  <p class="text-muted" style="margin-bottom:var(--space-4);font-size:var(--text-sm)">
+    Zmodyfikuj tylko potrzebne pola. Zapis tworzy nową wersję (historia zostaje).
+  </p>
+
+  <form method="post" action="/admin/rates/gas/{{ comp.id }}/edit">
+    <div class="form-group">
+      <label>Nowa data obowiązywania od</label>
+      <input type="date" name="valid_from" required value="{{ today.isoformat() }}">
+    </div>
+
+    <hr class="divider">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Opłata abonamentowa (zł/mies.)</label>
+        <input type="number" name="abonament" required step="0.0001" min="0" value="{{ '%.4f'|format(comp.abonament) }}" inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <label>Współczynnik konwersji m³→kWh</label>
+        <input type="number" name="conv_factor" required step="0.000001" min="0" value="{{ '%.6f'|format(comp.conv_factor) }}" inputmode="decimal">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Cena paliwa gazowego (zł/kWh)</label>
+        <input type="number" name="gas_price_per_kwh" required step="0.000001" min="0" value="{{ '%.6f'|format(comp.gas_price_per_kwh) }}" inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <label>VAT (%)</label>
+        <input type="number" name="vat_pct" required step="0.01" min="0" max="100" value="{{ '%.2f'|format(comp.vat_pct) }}" inputmode="decimal">
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>Dystrybucyjna stała (zł/mies.)</label>
+        <input type="number" name="dist_fixed" required step="0.0001" min="0" value="{{ '%.4f'|format(comp.dist_fixed) }}" inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <label>Dystrybucyjna zmienna (zł/kWh)</label>
+        <input type="number" name="dist_variable" required step="0.000001" min="0" value="{{ '%.6f'|format(comp.dist_variable) }}" inputmode="decimal">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Notatki</label>
+      <input type="text" name="notes" value="{{ comp.notes or '' }}" placeholder="Faktura ...">
+    </div>
+
+    <div class="form-group">
+      <label>Lokal (opcjonalnie — brak = stawka globalna)</label>
+      <select name="apartment_id">
+        <option value="">🌐 Globalna (dla wszystkich lokali)</option>
+        {% for apt in apartments %}
+        <option value="{{ apt.id }}"
+          {% if comp.apartment and comp.apartment.id == apt.id %}selected{% endif %}>
+          {{ apt.address }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="display:flex;gap:var(--space-2)">
+      <a href="/admin/rates#gas" class="btn btn-ghost">← Wróć</a>
+      <button type="submit" class="btn btn-primary">Zapisz nową wersję</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

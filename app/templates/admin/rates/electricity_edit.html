@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Edytuj składowe prądu{% endblock %}
+{% block page_title %}Edytuj składowe prądu{% endblock %}
+{% block content %}
+<section class="card" style="max-width:var(--content-narrow)">
+  <div class="card-header">
+    <h2 class="card-title">⚡ Edycja — składowe prądu</h2>
+  </div>
+  <p class="text-muted" style="margin-bottom:var(--space-4);font-size:var(--text-sm)">
+    Zmodyfikuj tylko potrzebne pola. Zapis tworzy nową wersję (historia zostaje).
+  </p>
+
+  <form method="post" action="/admin/rates/electricity/{{ comp.id }}/edit">
+    <div class="form-group">
+      <label>Nowa data obowiązywania od</label>
+      <input type="date" name="valid_from" required value="{{ today.isoformat() }}">
+    </div>
+
+    <hr class="divider">
+    <p class="section-subtitle">Sprzedaż energii</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Stawka zmienna całodobowa (zł/kWh)</label>
+        <input type="number" name="var_rate" required step="0.000001" min="0" value="{{ '%.6f'|format(comp.var_rate) }}" inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <label>Opłata za dodatkowy cykl handlowy (zł/mies.)</label>
+        <input type="number" name="extra_trade_cycle" required step="0.0001" min="0" value="{{ '%.4f'|format(comp.extra_trade_cycle) }}" inputmode="decimal">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Stawka stała ceny (zł/mies.)</label>
+      <input type="number" name="fixed_price" required step="0.0001" min="0" value="{{ '%.4f'|format(comp.fixed_price) }}" inputmode="decimal">
+    </div>
+
+    <hr class="divider">
+    <p class="section-subtitle">Usługa dystrybucji</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Składnik stały stawki sieciowej (zł/mies.)</label>
+        <input type="number" name="dist_fixed" required step="0.0001" min="0" value="{{ '%.4f'|format(comp.dist_fixed) }}" inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <label>Opłata przejściowa (zł/mies.)</label>
+        <input type="number" name="transition_fee" required step="0.000001" min="0" value="{{ '%.6f'|format(comp.transition_fee) }}" inputmode="decimal">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Opłata abonamentowa (zł/mies.)</label>
+        <input type="number" name="abonament" required step="0.0001" min="0" value="{{ '%.4f'|format(comp.abonament) }}" inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <label>Opłata mocowa (zł/mies.)</label>
+        <input type="number" name="power_fee" required step="0.0001" min="0" value="{{ '%.4f'|format(comp.power_fee) }}" inputmode="decimal">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Stawka jakościowa (zł/kWh)</label>
+        <input type="number" name="quality_rate" required step="0.000001" min="0" value="{{ '%.6f'|format(comp.quality_rate) }}" inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <label>Składnik zmienny stawki sieciowej (zł/kWh)</label>
+        <input type="number" name="dist_variable" required step="0.000001" min="0" value="{{ '%.6f'|format(comp.dist_variable) }}" inputmode="decimal">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Opłata OZE (zł/kWh)</label>
+        <input type="number" name="oze_rate" required step="0.000001" min="0" value="{{ '%.6f'|format(comp.oze_rate) }}" inputmode="decimal">
+      </div>
+      <div class="form-group">
+        <label>Opłata kogeneracyjna (zł/kWh)</label>
+        <input type="number" name="cogen_rate" required step="0.000001" min="0" value="{{ '%.6f'|format(comp.cogen_rate) }}" inputmode="decimal">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Notatki</label>
+      <input type="text" name="notes" value="{{ comp.notes or '' }}" placeholder="Faktura ...">
+    </div>
+
+    <div class="form-group">
+      <label>Lokal (opcjonalnie — brak = stawka globalna)</label>
+      <select name="apartment_id">
+        <option value="">🌐 Globalna (dla wszystkich lokali)</option>
+        {% for apt in apartments %}
+        <option value="{{ apt.id }}"
+          {% if comp.apartment and comp.apartment.id == apt.id %}selected{% endif %}>
+          {{ apt.address }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="display:flex;gap:var(--space-2)">
+      <a href="/admin/rates#electricity" class="btn btn-ghost">← Wróć</a>
+      <button type="submit" class="btn btn-primary">Zapisz nową wersję</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

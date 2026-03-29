@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Lokale — Zarządzanie Najmem{% endblock %}
+{% block page_title %}Lokale{% endblock %}
+{% block topbar_actions %}
+<a href="/admin/apartments/new" class="btn btn-primary btn-sm">
+  <i data-lucide="plus" width="14" height="14"></i> Nowy lokal
+</a>
+{% endblock %}
+{% block content %}
+<div class="card">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Adres</th>
+        <th>Najemca</th>
+        <th>Media</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for apt in apartments %}
+      {% set active_tenant = apt.tenants | selectattr('is_active', 'equalto', True) | first %}
+      <tr>
+          <td><a href="/admin/apartments/{{ apt.id }}" class="btn btn-ghost btn-sm">Otwórz →</a></td>
+          <td><strong>{{ apt.address }}</strong></td>
+          <td>{{ active_tenant.full_name if active_tenant else '—' }}</td>
+          <td class="media-cell">
+            {% if apt.has_water %}<span title="Woda">💧</span>{% endif %}
+            {% if apt.has_electricity %}<span title="Prąd">⚡</span>{% endif %}
+            {% if apt.has_gas %}<span title="Gaz">🔥</span>{% endif %}
+            {% if apt.has_trash %}<span title="Śmieci">🗑️</span>{% endif %}
+            {% if apt.has_heating %}<span title="Ogrzewanie">🌡️</span>{% endif %}
+          </td>
+          <td>
+            {% if not apt.is_active %}<span class="badge badge-neutral">Nieaktywny</span>
+            {% elif active_tenant %}<span class="badge badge-success">Wynajęte</span>
+            {% else %}<span class="badge badge-neutral">Wolne</span>{% endif %}
+          </td>
+          <td><a href="/admin/apartments/{{ apt.id }}" class="btn btn-ghost btn-sm">Otwórz →</a></td>
+
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="empty-cell">Brak lokali. <a href="/admin/apartments/new">Dodaj pierwszy →</a></td></tr>
+
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

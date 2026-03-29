@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Rozliczenie — {{ bp.apartment.address }}{% endblock %}
+{% block page_title %}
+<nav class="breadcrumb">
+  <a href="/admin/billing/list">Rozliczenia</a>
+  <i data-lucide="chevron-right" width="14" height="14"></i>
+  <span>{{ bp.apartment.address if bp.apartment else '' }}</span>
+</nav>
+{% endblock %}
+{% block content %}
+<div class="detail-grid">
+  <section class="card billing-summary">
+    <div class="card-header">
+      <h2 class="card-title">Rozliczenie {{ bp.period_start.strftime('%m.%Y') }}</h2>
+      <div class="header-badges">
+        <form action="/admin/billing/{{ bp.id }}/delete" method="post" style="display:inline"
+              onsubmit="return confirm('Usunąć całe rozliczenie wraz z wpłatami? Tej operacji nie można cofnąć.')">
+          <button type="submit" class="btn btn-ghost btn-sm" title="Usuń rozliczenie">🗑️</button>
+        </form>
+        {% if bp.status.value == 'paid' %}<span class="badge badge-success">Opłacone</span>
+        {% elif bp.status.value == 'overdue' %}<span class="badge badge-error">Zaległe</span>
+        {% elif bp.status.value == 'issued' %}<span class="badge badge-warning">Wystawione</span>
+        {% else %}<span class="badge badge-neutral">Szkic</span>{% endif %}
+      </div>
+    </div>
+    <div class="billing-meta">
+      <div class="info-item"><span class="info-label">Lokal</span><span class="info-value">{{ bp.apartment.address }}</span></div>
+      <div class="info-item"><span class="info-label">Najemca</span><span class="info-value">{{ tenant.full_name if tenant else '—' }}</span></div>
+      <div class="info-item"><span class="info-label">Okres</span><span class="info-value">{{ bp.period_start.strftime('%d.%m.%Y') }} – {{ bp.period_end.strftime('%d.%m.%Y') }}</span></div>
+      <div class="info-item"><span class="info-label">Termin płatności</span><span class="info-value {{ 'text-error' if bp.status.value == 'overdue' }}">{{ bp.due_date.strftime('%d.%m.%Y') }}</span></div>
+    </div>
+    <div class="billing-items">
+      {% for item in bp.items %}
+      <div class="billing-line {{ 'billing-line-total' if loop.last }}">
+        <span class="billing-desc">{{ item.description }}</span>
+        <span class="billing-price num">{{ "%.2f"|format(item.total_price) }} zł</span>
+        {% if bp.status.value == 'draft' %}
+        <form action="/admin/billing/{{ bp.id }}/item/{{ item.id }}/delete" method="post" style="display:inline"
+              onsubmit="return confirm('Usunąć tę pozycję?')">
+          <button type="submit" class="btn btn-ghost btn-xs" title="Usuń pozycję" style="padding:2px 6px">🗑️</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+      <div class="billing-line billing-line-grand">
+        <span class="billing-desc"><strong>RAZEM</strong></span>
+        <span class="billing-price num"><strong>{{ "%.2f"|format(bp.total_amount) }} zł</strong></span>
+      </div>
+      <div class="billing-line">
+        <span class="billing-desc text-muted">Zapłacono</span>
+        <span class="billing-price num text-success">{{ "%.2f"|format(bp.amount_paid) }} zł</span>
+      </div>
+      {% if bp.total_amount > bp.amount_paid %}
+      <div class="billing-line billing-line-due">
+        <span class="billing-desc"><strong>Pozostało do zapłaty</strong></span>
+        <span class="billing-price num text-error"><strong>{{ "%.2f"|format(bp.total_amount - bp.amount_paid) }} zł</strong></span>
+      </div>
+      {% endif %}
+    </div>
+    {% if bp.status.value == 'draft' %}
+    <form action="/admin/billing/{{ bp.id }}/issue" method="post" style="margin-top:var(--space-4)">
+      <button type="submit" class="btn btn-primary btn-full">Wystaw rozliczenie najemcy</button>
+    </form>
+    {% endif %}
+    {% if bp.status.value != 'draft' and bp.status.value != 'paid' %}
+    <form action="/admin/billing/{{ bp.id }}/revert-to-draft" method="post" style="margin-top:var(--space-2)">
+      <button type="submit" class="btn btn-ghost btn-full btn-sm">↩ Cofnij do szkicu</button>
+    </form>
+    {% endif %}
+    <hr class="divider" style="margin-top:var(--space-4)">
+    <details style="margin-top:var(--space-2)">
+      <summary class="text-muted" style="cursor:pointer; font-size:var(--text-sm)">✏️ Edytuj termin / notatki</summary>
+      <form method="post" action="/admin/billing/{{ bp.id }}/edit" style="margin-top:var(--space-3)">
+        <div class="form-group">
+          <label>Termin płatności</label>
+          <input type="date" name="due_date" value="{{ bp.due_date.isoformat() }}" required>
+        </div>
+        <div class="form-group">
+          <label>Notatki</label>
+          <textarea name="notes" rows="2">{{ bp.notes or '' }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Zapisz zmiany</button>
+      </form>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">Zarejestruj wpłatę</h2>
+    </div>
+    <form method="post" action="/admin/billing/{{ bp.id }}/payment" id="paymentForm">
+      <div class="form-group">
+        <label>Data wpłaty</label>
+        <input type="date" name="payment_date" required value="{{ today.isoformat() }}">
+      </div>
+      <div class="form-group">
+        <label>Kwota</label>
+        <input type="number" name="amount" required step="0.01" min="0" inputmode="decimal" placeholder="0.00" id="totalAmount">
+      </div>
+      <div class="form-group">
+        <label>Typ płatności</label>
+        <select name="payment_type" id="paymentType" onchange="toggleMixed(this.value)">
+          <option value="cash">💵 Gotówka</option>
+          <option value="transfer">🏦 Przelew</option>
+          <option value="mixed">⚡ Mieszana</option>
+        </select>
+      </div>
+      <div id="mixedFields" style="display:none">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Kwota gotówką</label>
+            <input type="number" name="cash_amount" step="0.01" min="0" inputmode="decimal" placeholder="0.00">
+          </div>
+          <div class="form-group">
+            <label>Kwota przelewem</label>
+            <input type="number" name="transfer_amount" step="0.01" min="0" inputmode="decimal" placeholder="0.00">
+          </div>
+        </div>
+      </div>
+      <div class="form-group" id="refField">
+        <label>Numer referencyjny (przelew)</label>
+        <input type="text" name="reference_number" placeholder="np. tytuł przelewu">
+      </div>
+      <div class="form-group">
+        <label>Notatki</label>
+        <textarea name="notes" rows="2"></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Zarejestruj wpłatę</button>
+    </form>
+  </section>
+
+  {% if bp.payments %}
+  <section class="card full-width">
+    <div class="card-header"><h2 class="card-title">Historia wpłat</h2></div>
+    <table class="data-table">
+      <thead><tr><th>Data</th><th>Kwota</th><th>Typ</th><th>Gotówka</th><th>Przelew</th><th>Ref.</th><th>Notatki</th></tr></thead>
+      <tbody>
+        {% for p in bp.payments %}
+        <tr>
+          <td>{{ p.payment_date.strftime('%d.%m.%Y') }}</td>
+          <td class="num">{{ "%.2f"|format(p.amount) }} zł</td>
+          <td>
+            {% if p.payment_type.value == 'cash' %}💵 Gotówka
+            {% elif p.payment_type.value == 'transfer' %}🏦 Przelew
+            {% else %}⚡ Mieszana{% endif %}
+          </td>
+          <td class="num">{{ "%.2f"|format(p.cash_amount) if p.cash_amount else '—' }}</td>
+          <td class="num">{{ "%.2f"|format(p.transfer_amount) if p.transfer_amount else '—' }}</td>
+          <td class="text-faint">{{ p.reference_number or '—' }}</td>
+          <td class="text-faint">{{ p.notes or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function toggleMixed(val) {
+  document.getElementById('mixedFields').style.display = val === 'mixed' ? 'block' : 'none';
+  document.getElementById('refField').style.display = val === 'cash' ? 'none' : 'block';
+}
+</script>
+{% endblock %}

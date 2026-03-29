@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Rozliczenia{% endblock %}
+{% block page_title %}Rozliczenia{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="table-scroll">
+  <table class="data-table">
+    <thead><tr><th>Lokal</th><th>Okres</th><th>Kwota</th><th>Zapłacono</th><th>Termin</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for bp in periods %}
+      <tr>
+        <td>{{ bp.apartment.address if bp.apartment else '—' }}</td>
+        <td>{{ bp.period_start.strftime('%m.%Y') }}</td>
+        <td class="num">{{ "%.2f"|format(bp.total_amount) }} zł</td>
+        <td class="num">{{ "%.2f"|format(bp.amount_paid) }} zł</td>
+        <td>{{ bp.due_date.strftime('%d.%m.%Y') }}</td>
+        <td>
+          {% if bp.status.value == 'paid' %}<span class="badge badge-success">Opłacone</span>
+          {% elif bp.status.value == 'overdue' %}<span class="badge badge-error">Zaległe</span>
+          {% elif bp.status.value == 'issued' %}<span class="badge badge-warning">Wystawione</span>
+          {% else %}<span class="badge badge-neutral">Szkic</span>{% endif %}
+        </td>
+        <td style="display:flex;gap:var(--space-1);align-items:center">
+          <a href="/admin/billing/{{ bp.id }}" class="btn btn-ghost btn-sm">Otwórz</a>
+          <form action="/admin/billing/{{ bp.id }}/delete" method="post" style="display:inline"
+                onsubmit="return confirm('Usunąć rozliczenie za {{ bp.period_start.strftime('%m.%Y') }}?')">
+            <button type="submit" class="btn btn-ghost btn-sm" title="Usuń">🗑️</button>
+            <input type="hidden" name="redirect_to" value="/admin/billing/list">
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="empty-cell">Brak rozliczeń</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}
