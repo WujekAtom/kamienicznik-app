@@ -32,6 +32,7 @@ UTILITY_MAP = {
     "electricity": (UtilityType.electricity, "Prąd"),
     "gas":         (UtilityType.gas,         "Gaz"),
     "heating":     (UtilityType.heating,     "Ogrzewanie"),
+    "community_fee": (UtilityType.community_fee, "Czynsz do wspólnoty")
 }
 
 
@@ -179,6 +180,14 @@ async def create_billing_submit(
             await add_billing_item(db, bp.id, "trash", desc, trash_total,
                                    quantity=Decimal(str(occupants)),
                                    unit_price=trash_rate.rate_per_unit)
+
+    # --- CZYNSZ DO WSPÓLNOTY ( zł / miesiąc) ---
+
+    community_rate = await get_current_rate(db, UtilityType.community_fee, period_end, apartment_id=apt.id)
+    if community_rate:
+        total = community_rate.rate_per_unit.quantize(Decimal("0.01"))
+        desc = f"Czynsz do wspólnoty: {float(community_rate.rate_per_unit):.2f} zł/mies."
+        await add_billing_item(db, bp.id, "community_fee", desc, total, quantity=Decimal("1.00"), unit_price=community_rate.rate_per_unit)
 
     await recalculate_billing_totals(db, bp)
     await db.commit()

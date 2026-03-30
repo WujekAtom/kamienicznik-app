@@ -9,6 +9,7 @@ class UtilityType(str, enum.Enum):
     gas = "gas"
     trash = "trash"
     heating = "heating"
+    community_fee = "community_fee"
 
 class UtilityRate(Base, TimestampMixin):
     __tablename__ = "utility_rates"

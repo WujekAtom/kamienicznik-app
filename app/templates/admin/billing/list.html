@@ -7,8 +7,10 @@
   <table class="data-table">
     <thead><tr><th>Lokal</th><th>Okres</th><th>Kwota</th><th>Zapłacono</th><th>Termin</th><th>Status</th><th></th></tr></thead>
     <tbody>
+
       {% for bp in periods %}
       <tr>
+        <td><a href="/admin/billing/{{ bp.id }}" class="btn btn-ghost btn-sm">Otwórz</a></td>
         <td>{{ bp.apartment.address if bp.apartment else '—' }}</td>
         <td>{{ bp.period_start.strftime('%m.%Y') }}</td>
         <td class="num">{{ "%.2f"|format(bp.total_amount) }} zł</td>

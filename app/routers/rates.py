@@ -28,6 +28,7 @@ UTILITY_LABELS = {
     UtilityType.gas: ("Gaz", "m\u00b3"),
     UtilityType.trash: ("\u015amieci", "os./mies."),
     UtilityType.heating: ("Ogrzewanie", "GJ"),
+    UtilityType.community_fee: ("Opłata do wspólnoty", "zł/mies.")
 }
 
 @router.get("", response_class=HTMLResponse)

@@ -5,7 +5,7 @@
 
 <!-- NAV TABS -->
 <div class="tab-nav" style="margin-bottom:var(--space-6)">
-  <a href="#simple" class="tab-link active" onclick="showTab('simple',this)">Woda / Śmieci / Ogrzewanie</a>
+  <a href="#simple" class="tab-link active" onclick="showTab('simple',this)">Woda / Śmieci / Ogrzewanie / Czynsz</a>
   <a href="#electricity" class="tab-link" onclick="showTab('electricity',this)">⚡ Prąd — składowe</a>
   <a href="#gas" class="tab-link" onclick="showTab('gas',this)">🔥 Gaz — składowe</a>
 </div>
@@ -14,7 +14,7 @@
 <div id="tab-simple">
 <div class="content-grid-2">
   <section class="card">
-    <div class="card-header"><h2 class="card-title">Dodaj stawkę (woda / śmieci / ogrzewanie)</h2></div>
+    <div class="card-header"><h2 class="card-title">Dodaj stawkę (woda / śmieci / ogrzewanie / czynsz)</h2></div>
     <form method="post" action="/admin/rates/new">
       <div class="form-group">
         <label>Medium</label>
@@ -22,6 +22,7 @@
           <option value="water">💧 Woda</option>
           <option value="trash">🗑️ Śmieci</option>
           <option value="heating">🌡️ Ogrzewanie</option>
+          <option value="community_fee">🏢 Czynsz do wspólnoty</option>
         </select>
       </div>
       <div class="form-group">
@@ -30,7 +31,7 @@
       </div>
       <div class="form-group">
         <label>Jednostka</label>
-        <input type="text" name="unit_label" id="unitLabel" value="m³" placeholder="m³, os./mies., GJ" required>
+        <input type="text" name="unit_label" id="unitLabel" value="m³" placeholder="m³, os./mies., GJ, zł/mies." required>
       </div>
       <div class="form-group">
         <label>Obowiązuje od</label>
@@ -56,7 +57,7 @@
     <div class="card-header"><h2 class="card-title">Historia stawek</h2></div>
     <div class="table-scroll">
     <table class="data-table">
-      <thead><tr><th>Medium</th><th>Lokal</th><th>Stawka</th><th>Jednostka</th><th>Od</th><th>Do</th></tr></thead
+      <thead><tr><th>Medium</th><th>Lokal</th><th>Stawka</th><th>Jednostka</th><th>Od</th><th>Do</th></tr></thead>
       <tbody>
         {% for r in rates %}
         <tr class="{{ 'row-current' if r.valid_to is none }}">
@@ -64,7 +65,9 @@
             {% set t = r.utility_type.value %}
             {% if t == 'water' %}💧 Woda
             {% elif t == 'trash' %}🗑️ Śmieci
-            {% else %}🌡️ Ogrzewanie{% endif %}
+            {% elif t == 'heating' %}🌡️ Ogrzewanie
+            {% elif t == 'community_fee' %}🏢 Czynsz do wspólnoty
+            {% endif %}
           </td>
           <td class="text-faint">
             {% if r.apartment %}
@@ -351,7 +354,7 @@
 {% endblock %}
 {% block extra_js %}
 <script>
-const units = {water:'m³', trash:'os./mies.', heating:'GJ'};
+const units = {water:'m³', trash:'os./mies.', heating:'GJ', community_fee:'zł/mies.'};
 function updateUnit(sel) {
   document.getElementById('unitLabel').value = units[sel.value] || '';
 }
