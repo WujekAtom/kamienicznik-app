@@ -11,6 +11,8 @@ from sqlalchemy import select
 from app.models.user import User
 from app.crud.users import get_user_by_email, get_user_by_magic_token, get_user_by_reset_token
 from app.auth.security import verify_password, create_access_token, hash_password, generate_reset_token
+from fastapi import BackgroundTasks
+from app.email import send_reset_email
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -71,27 +73,31 @@ from app.database import get_db
 @router.post("/forgot-password", response_class=HTMLResponse)
 async def forgot_password_submit(
     request: Request,
+    background_tasks: BackgroundTasks,
     email: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
     user = await get_user_by_email(db, email)
 
-    token = None
     if user and user.is_active:
         token = generate_reset_token()
         user.reset_token = token
         user.reset_token_expires = datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_TTL_MIN)
         await db.commit()
-        # tutaj normalnie wysyłasz maila z linkiem resetu
 
-    # zawsze pokazujemy ten sam komunikat (nie zdradzamy czy user istnieje)
+        reset_link = f"{request.base_url}reset-password?token={token}"
+        background_tasks.add_task(send_reset_email, user.email, reset_link)
+
     message = "Jeśli podany email istnieje w systemie, wysłaliśmy link do resetu hasła."
-    return templates.TemplateResponse("forgot_password.html", {
-        "request": request,
-        "message": message,
-        "token": token,  # w DEV: pokaż token; w PROD usuń
-    })
 
+    return templates.TemplateResponse(
+        "forgot_password.html",
+        {
+            "request": request,
+            "message": message,
+            "token": None,
+        },
+    )
 
 @router.get("/reset-password", response_class=HTMLResponse)
 async def reset_password_page(
