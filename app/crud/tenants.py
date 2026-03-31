@@ -33,3 +33,4 @@ async def update_tenant(db: AsyncSession, tenant: Tenant, data: dict) -> Tenant:
         setattr(tenant, k, v)
     await db.flush()
     return tenant
+

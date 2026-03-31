@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import Select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.database import get_db
 from app.auth.dependencies import require_admin
 from app.models.user import User
-from app.models.tenant import ContractType
+from app.models.tenant import ContractType, Tenant
 from app.crud.apartments import get_apartments, get_apartment, create_apartment, update_apartment
 from app.crud.tenants import create_tenant, update_tenant, get_active_tenant_for_apartment
 from app.crud.users import create_tenant_user, regenerate_magic_link
@@ -149,6 +151,15 @@ async def edit_tenant(apt_id: int, request: Request, db: AsyncSession = Depends(
         "water_advance": water_advance,
         "notes": notes or None,
     })
+
+    # Update related user account
+    get_user_query = select(User).where(User.tenant_id == tenant.id)
+    result = await db.execute(get_user_query)
+    user_account = result.scalars().first()
+
+    if user_account and email:
+        user_account.email = email
+
     await db.commit()
     return RedirectResponse(url=f"/admin/apartments/{apt_id}", status_code=302)
 
