@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Hurtowe rozliczenie{% endblock %}
+{% block page_title %}Hurtowe rozliczenie{% endblock %}
+
+{% block auth_content %}
+<div class="content-narrow">
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">
+        Rozliczenie lokali za okres {{ period_from }} – {{ period_to }}
+      </h2>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Lokal</th>
+          <th>Status</th>
+          <th>Informacja</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in results %}
+        <tr>
+          <td>{{ row.apartment_id }}</td>
+          <td>
+            {% if row.status == 'ok' %}
+              Utworzono
+            {% elif row.status == 'no_readings' %}
+              Brak odczytów
+            {% else %}
+              Błąd
+            {% endif %}
+          </td>
+          <td>{{ row.message }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="form-actions">
+      <a href="/admin/apartments" class="btn btn-primary">Wróć do listy lokali</a>
+    </div>
+  </section>
+</div>
+{% endblock %}

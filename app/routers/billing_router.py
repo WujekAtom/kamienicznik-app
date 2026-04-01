@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -14,7 +16,7 @@ from app.models.payment import Payment, PaymentType
 from app.crud.apartments import get_apartment
 from app.crud.billing import (create_billing_period, get_billing_period,
                                add_billing_item, recalculate_billing_totals,
-                               get_billing_periods_for_apartment)
+                               get_billing_periods_for_apartment, create_billing_for_apartment_and_period)
 from app.crud.payments import add_payment
 from app.crud.tenants import get_active_tenant_for_apartment
 from app.crud.utility_rates import get_current_rate
@@ -75,123 +77,62 @@ async def create_billing_submit(
     apt = await get_apartment(db, apt_id)
     if not apt:
         raise HTTPException(404)
-    tenant = await get_active_tenant_for_apartment(db, apt_id)
-    rent = tenant.rent_amount if tenant else Decimal("0")
 
-    bp = await create_billing_period(db, apt_id, period_start, period_end, rent, due_date, notes or None)
+    bp, missing = await create_billing_for_apartment_and_period(db, apt_id, period_start, period_end, due_date, notes )
 
-    # Czynsz
-    await add_billing_item(db, bp.id, "rent", "Czynsz podstawowy", rent)
-
-    # Media
-    all_readings = await get_readings_for_apartment(db, apt_id, limit=200)
-
-    def get_readings(ut):
-        in_p = [r for r in all_readings if r.utility_type == ut and period_start <= r.reading_date <= period_end]
-        bef_p = [r for r in all_readings if r.utility_type == ut and r.reading_date < period_start]
-        if not in_p or not bef_p:
-            return None, None, None
-        r_to = max(in_p, key=lambda r: r.reading_date)
-        r_from = max(bef_p, key=lambda r: r.reading_date)
-        cons = r_to.reading_value - r_from.reading_value
-        if cons <= 0:
-            return None, None, None
-        return r_from, r_to, cons
-
-    # --- WODA ---
-    if apt.has_water:
-        water_rate = await get_current_rate(db, UtilityType.water, period_end, apartment_id=apt.id)
-        r_from, r_to, cons = get_readings(UtilityType.water)
-        if water_rate and cons is not None:
-            usage_cost = (cons * water_rate.rate_per_unit).quantize(Decimal("0.01"))
-            adv = (tenant.water_advance.quantize(Decimal("0.01"))
-                   if tenant and tenant.water_advance and tenant.water_advance > 0
-                   else Decimal("0.00"))
-            net_water = (usage_cost - adv).quantize(Decimal("0.01"))
-            if adv > 0:
-                desc = (f"Woda: {float(cons):.3f} m³ × {float(water_rate.rate_per_unit):.4f} zł/m³"
-                        f" = {float(usage_cost):.2f} zł − zaliczka {float(adv):.2f} zł"
-                        f" = {float(net_water):.2f} zł")
-            else:
-                desc = f"Woda: {float(cons):.3f} m³ × {float(water_rate.rate_per_unit):.4f} zł/m³"
-            await add_billing_item(db, bp.id, "water", desc, net_water,
-                                   quantity=cons, unit_price=water_rate.rate_per_unit,
-                                   reading_from_id=r_from.id, reading_to_id=r_to.id)
-
-    # --- PRĄD (składowe z faktury) ---
-    if apt.has_electricity:
-        elec = await get_current_electricity(db, period_end, apartment_id=apt.id)
-        r_from, r_to, cons = get_readings(UtilityType.electricity)
-        if elec and cons is not None:
-            kwh = cons
-            # Sprzedaż energii
-            var_total = (kwh * elec.var_rate).quantize(Decimal("0.01"))
-            fixed_sale = (elec.extra_trade_cycle + elec.fixed_price).quantize(Decimal("0.01"))
-            sale_total = (var_total + fixed_sale).quantize(Decimal("0.01"))
-            # Dystrybucja
-            dist_var = (kwh * (elec.quality_rate + elec.dist_variable + elec.oze_rate + elec.cogen_rate)).quantize(Decimal("0.01"))
-            dist_fixed = (elec.dist_fixed + elec.transition_fee + elec.abonament + elec.power_fee).quantize(Decimal("0.01"))
-            dist_total = (dist_var + dist_fixed).quantize(Decimal("0.01"))
-            elec_total = (sale_total + dist_total).quantize(Decimal("0.01"))
-            vat = (elec_total * 23 / Decimal("100")).quantize(Decimal("0.01"))
-            elec_total_vat = (elec_total + vat).quantize(Decimal("0.01"))
-            desc = (f"Prąd: {float(kwh):.3f} kWh | "
-                    f"sprzedaż: {float(sale_total):.2f} zł, dystr.: {float(dist_total):.2f} zł + VAT 23%: {float(vat):.2f} zł")
-            await add_billing_item(db, bp.id, "electricity", desc, elec_total_vat,
-                                   quantity=kwh, unit_price=None,
-                                   reading_from_id=r_from.id, reading_to_id=r_to.id)
-
-    # --- GAZ (składowe z faktury) ---
-    if apt.has_gas:
-        gas = await get_current_gas(db, period_end, apartment_id=apt.id)
-        r_from, r_to, cons = get_readings(UtilityType.gas)
-        if gas and cons is not None:
-            m3 = cons
-            kwh_gas = (m3 * gas.conv_factor).quantize(Decimal("0.000001"))
-            fuel_netto = (kwh_gas * gas.gas_price_per_kwh).quantize(Decimal("0.01"))
-            dist_var = (kwh_gas * gas.dist_variable).quantize(Decimal("0.01"))
-            netto = (fuel_netto + gas.dist_fixed + gas.abonament + dist_var).quantize(Decimal("0.01"))
-            vat = (netto * gas.vat_pct / Decimal("100")).quantize(Decimal("0.01"))
-            gas_total = (netto + vat).quantize(Decimal("0.01"))
-            desc = (f"Gaz: {float(m3):.3f} m³ → {float(kwh_gas):.1f} kWh | "
-                    f"netto: {float(netto):.2f} zł + VAT {float(gas.vat_pct):.0f}%: {float(vat):.2f} zł")
-            await add_billing_item(db, bp.id, "gas", desc, gas_total,
-                                   quantity=m3, unit_price=None,
-                                   reading_from_id=r_from.id, reading_to_id=r_to.id)
-
-    # --- OGRZEWANIE (prosta stawka) ---
-    if apt.has_heating:
-        heat_rate = await get_current_rate(db, UtilityType.heating, period_end, apartment_id=apt.id)
-        r_from, r_to, cons = get_readings(UtilityType.heating)
-        if heat_rate and cons is not None:
-            total = (cons * heat_rate.rate_per_unit).quantize(Decimal("0.01"))
-            desc = f"Ogrzewanie: {float(cons):.3f} GJ × {float(heat_rate.rate_per_unit):.4f} zł/GJ"
-            await add_billing_item(db, bp.id, "heating", desc, total,
-                                   quantity=cons, unit_price=heat_rate.rate_per_unit,
-                                   reading_from_id=r_from.id, reading_to_id=r_to.id)
-
-    # --- ŚMIECI (stawka × liczba osób) ---
-    if apt.has_trash and tenant:
-        trash_rate = await get_current_rate(db, UtilityType.trash, period_end, apartment_id=apt.id)
-        if trash_rate:
-            occupants = tenant.occupants or 1
-            trash_total = (Decimal(str(occupants)) * trash_rate.rate_per_unit).quantize(Decimal("0.01"))
-            desc = f"Śmieci: {occupants} os. × {float(trash_rate.rate_per_unit):.2f} zł/os."
-            await add_billing_item(db, bp.id, "trash", desc, trash_total,
-                                   quantity=Decimal(str(occupants)),
-                                   unit_price=trash_rate.rate_per_unit)
-
-    # --- CZYNSZ DO WSPÓLNOTY ( zł / miesiąc) ---
-
-    community_rate = await get_current_rate(db, UtilityType.community_fee, period_end, apartment_id=apt.id)
-    if community_rate:
-        total = community_rate.rate_per_unit.quantize(Decimal("0.01"))
-        desc = f"Czynsz do wspólnoty: {float(community_rate.rate_per_unit):.2f} zł/mies."
-        await add_billing_item(db, bp.id, "community_fee", desc, total, quantity=Decimal("1.00"), unit_price=community_rate.rate_per_unit)
-
-    await recalculate_billing_totals(db, bp)
-    await db.commit()
     return RedirectResponse(url=f"/admin/billing/{bp.id}", status_code=302)
+
+@router.post("/bulk")
+async def create_billing_bulk(request: Request,
+    apartment_ids: List[int] = Form(...),
+    period_from: date = Form(...),
+    period_to: date = Form(...),
+    due_to: date = Form(...),
+    db: AsyncSession = Depends(get_db),):
+
+    results = []
+
+    for apt_id in apartment_ids:
+        billing, missing = await create_billing_for_apartment_and_period(
+            db=db,
+            apartment_id=apt_id,
+            period_from=period_from,
+            period_to=period_to,
+            due_to=due_to,
+            notes="Wygenerowane zbiorowo"
+        )
+
+        if billing:
+            results.append({
+                "apartment_id": apt_id,
+                "status": "ok",
+                "message": "Rozliczenie utworzone",
+                "billing_id": billing.id,
+            })
+        elif missing:
+            results.append({
+                "apartment_id": apt_id,
+                "status": "no_readings",
+                "message": f"Brak odczytów: {', '.join(missing)}",
+                "billing_id": None,
+            })
+        else:
+            results.append({
+                "apartment_id": apt_id,
+                "status": "error",
+                "message": "Nie udało się utworzyć rozliczenia",
+                "billing_id": None,
+            })
+
+    return templates.TemplateResponse(
+        "bulk_billing_result.html",
+        {
+            "request": request,
+            "results": results,
+            "period_from": period_from,
+            "period_to": period_to,
+        },
+    )
 
 
 @router.get("/{bp_id}", response_class=HTMLResponse)
