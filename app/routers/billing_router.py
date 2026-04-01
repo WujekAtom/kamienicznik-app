@@ -88,6 +88,7 @@ async def create_billing_bulk(request: Request,
     period_from: date = Form(...),
     period_to: date = Form(...),
     due_to: date = Form(...),
+    current_user: User = Depends(require_admin),
     db: AsyncSession = Depends(get_db),):
 
     results = []
@@ -102,25 +103,33 @@ async def create_billing_bulk(request: Request,
             notes="Wygenerowane zbiorowo"
         )
 
+        apt = await get_apartment(db, apt_id)  # żeby mieć adres
+
         if billing:
             results.append({
                 "apartment_id": apt_id,
+                "address": apt.address,  # albo zlepka ulicy/numeru
                 "status": "ok",
-                "message": "Rozliczenie utworzone",
+                "message": "",
+                "amount": float(billing.total_amount),  # lub inna kolumna
                 "billing_id": billing.id,
             })
         elif missing:
             results.append({
                 "apartment_id": apt_id,
+                "address": apt.address if apt else f"Lokal {apt_id}",
                 "status": "no_readings",
                 "message": f"Brak odczytów: {', '.join(missing)}",
+                "amount": None,
                 "billing_id": None,
             })
         else:
             results.append({
                 "apartment_id": apt_id,
+                "address": apt.address if apt else f"Lokal {apt_id}",
                 "status": "error",
                 "message": "Nie udało się utworzyć rozliczenia",
+                "amount": None,
                 "billing_id": None,
             })
 
@@ -131,6 +140,7 @@ async def create_billing_bulk(request: Request,
             "results": results,
             "period_from": period_from,
             "period_to": period_to,
+            "current_user": current_user,
         },
     )
 

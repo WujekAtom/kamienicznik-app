@@ -1,46 +1,75 @@
 {% extends "base.html" %}
 {% block title %}Hurtowe rozliczenie{% endblock %}
-{% block page_title %}Hurtowe rozliczenie{% endblock %}
+{% block pagetitle %}Hurtowe rozliczenie lokali{% endblock %}
 
-{% block auth_content %}
-<div class="content-narrow">
+{% block content %}
+<div class="content-wide">
   <section class="card">
     <div class="card-header">
       <h2 class="card-title">
         Rozliczenie lokali za okres {{ period_from }} – {{ period_to }}
       </h2>
+      <p class="card-subtitle">
+        Poniżej lista lokali, dla których próbowano utworzyć rozliczenie.
+      </p>
     </div>
 
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Lokal</th>
-          <th>Status</th>
-          <th>Informacja</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in results %}
-        <tr>
-          <td>{{ row.apartment_id }}</td>
-          <td>
-            {% if row.status == 'ok' %}
-              Utworzono
-            {% elif row.status == 'no_readings' %}
-              Brak odczytów
-            {% else %}
-              Błąd
-            {% endif %}
-          </td>
-          <td>{{ row.message }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    <div class="form-actions">
-      <a href="/admin/apartments" class="btn btn-primary">Wróć do listy lokali</a>
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Lokal</th>
+            <th>Status</th>
+            <th class="text-right">Kwota</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in results %}
+          <tr>
+            <td>{{ row.address }}</td>
+            <td>
+              {% if row.status == 'ok' %}
+                <span class="badge badge-success">Utworzone</span>
+              {% elif row.status == 'no_readings' %}
+                <span class="badge badge-warning">Brak odczytów</span>
+              {% else %}
+                <span class="badge badge-danger">Błąd</span>
+              {% endif %}
+            </td>
+            <td class="text-right">
+              {% if row.amount is not none %}
+                {{ '%.2f'|format(row.amount) }} zł
+              {% else %}–{% endif %}
+            </td>
+            <td class="text-right">
+              {% if row.billing_id %}
+                <a href="/admin/billing/{{ row.billing_id }}" class="btn btn-ghost">
+                  Otwórz
+                </a>
+              {% else %}
+                <button class="btn btn-ghost" disabled>Otwórz</button>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+
+
+      <div class="card-footer">
+  <div class="btn-group-vertical">
+    <a href="/admin/billing/list" class="btn btn-primary">
+      Przejdź do listy rozliczeń
+    </a>
+    <a href="/admin/apartments" class="btn btn-primary">
+      Wróć do listy lokali
+    </a>
+      </div>
+
+</div>
+
   </section>
 </div>
 {% endblock %}
