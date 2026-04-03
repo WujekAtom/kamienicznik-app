@@ -38,14 +38,20 @@ async def add_reading(apt_id: int, request: Request, db: AsyncSession = Depends(
 
 @router.post("/{reading_id}/verify-photo")
 async def verify_photo(reading_id: int, db: AsyncSession = Depends(get_db),
-                        current_user: User = Depends(require_admin)):
+                        current_user: User = Depends(require_admin), status: str=Form(...)):
     from datetime import datetime, timezone
     result = await db.execute(select(MeterReading).where(MeterReading.id == reading_id))
     reading = result.scalar_one_or_none()
     if reading:
-        reading.photo_verified = True
-        reading.photo_verified_by_id = current_user.id
-        reading.photo_verified_at = datetime.now(timezone.utc)
+        if status == 'verified':
+            reading.photo_verified = True
+            reading.photo_verified_by_id = current_user.id
+            reading.photo_verified_at = datetime.now(timezone.utc)
+        elif status == 'needs_attention':
+            reading.photo_verified = False
+            reading.photo_verified_by_id = current_user.id
+            reading.photo_verified_at = datetime.now(timezone.utc)
+            reading.notes = 'Błedny odczyt lub niewyrazny'
     apt_id = reading.apartment_id if reading else 0
     return RedirectResponse(url=f"/admin/apartments/{apt_id}", status_code=302)
 
