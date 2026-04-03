@@ -1,40 +1,41 @@
-from pydantic_settings import BaseSettings
 from functools import lru_cache
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+    )
+
+    # App
     app_name: str = "Zarządzanie Najmem"
-    secret_key: str = "change-me-in-production-use-long-random-string"
+    secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 7  # 7 dni
     magic_link_expire_days: int = 365
 
     # Database
-    database_url: str = "postgresql+asyncpg://rental:rental@db:5432/rental"
-    postgres_user: str = "rental"
-    postgres_password: str = "rental"
-    postgres_db: str = "rental"
+    database_url: str
 
     # Upload
     upload_dir: str = "./uploads"
     max_upload_size_mb: int = 10
 
     # SMTP
-    SMTP_HOST: str = "smtp.wp.pl"
-    SMTP_PORT: int = 465
-    SMTP_USERNAME: str
-    SMTP_PASSWORD: str
-    SMTP_FROM_NAME: str
-    SMTP_FROM_ADDRESS: str
+    smtp_host: str
+    smtp_port: int = 465
+    smtp_username: str
+    smtp_password: str
+    smtp_from_name: str = "Kamienicznik Administrator"
+    smtp_from_address: str
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-    # model_config = {"env_file": ".env", "extra": "ignore"}
 
-settings = Settings()
-
-# @lru_cache
+@lru_cache
 def get_settings() -> Settings:
-    return settings
+    return Settings()
+
+
+settings = get_settings()

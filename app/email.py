@@ -8,7 +8,7 @@ from app.config import settings
 def send_reset_email(to_email: str, reset_link: str) -> None:
     msg = EmailMessage()
     msg["Subject"] = "Reset hasła"
-    msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_FROM_ADDRESS}>"
+    msg["From"] = f"{settings.smtp_from_name} <{settings.smtp_from_address}>"
     msg["To"] = to_email
     msg.set_content(
         f"Cześć,\n\n"
@@ -17,6 +17,6 @@ def send_reset_email(to_email: str, reset_link: str) -> None:
     )
 
     context = ssl.create_default_context()
-    with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, context=context) as smtp:
-        smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
+    with smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, context=context) as smtp:
+        smtp.login(settings.smtp_username, settings.smtp_password)
         smtp.send_message(msg)
