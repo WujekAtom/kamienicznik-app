@@ -64,7 +64,7 @@ async def submit_reading(request: Request, db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     utility_type: str = Form(...), reading_date: date = Form(...),
     reading_value: Decimal = Form(...), notes: str = Form(""),
-    photo: UploadFile = File(None)):
+    photo: UploadFile | None = File(None)):
     if not current_user.tenant_id:
         raise HTTPException(403)
     tenant = current_user.tenant
@@ -73,7 +73,10 @@ async def submit_reading(request: Request, db: AsyncSession = Depends(get_db),
     if photo and photo.filename:
         os.makedirs(settings.upload_dir, exist_ok=True)
         ext = os.path.splitext(photo.filename)[1].lower()
-        fname = f"{uuid.uuid4()}{ext}"
+        if ext not in {".jpg", ".jpeg", ".png", ".webp"}:
+            return {"error": "Obsługiwane typy to JPG, PNG, WEBP"}
+        # fname = f"{uuid.uuid4()}{ext}"
+        fname = f"{apt_id}_{utility_type}_{uuid.uuid4()}{ext}"  # composing new file's name
         fpath = os.path.join(settings.upload_dir, fname)
         async with aiofiles.open(fpath, "wb") as f:
             content = await photo.read()
