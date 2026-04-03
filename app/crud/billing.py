@@ -256,6 +256,6 @@ async def create_billing_for_apartment_and_period(
 
     await recalculate_billing_totals(db, bp)
 
-    await db.commit()
+    await db.flush()
 
     return bp, []
