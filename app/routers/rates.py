@@ -89,7 +89,7 @@ async def create_electricity_submit(request: Request, db: AsyncSession = Depends
         "cogen_rate": cogen_rate,
         "apartment_id": apt_id,
     })
-    await db.commit()
+    await db.flush()
     return RedirectResponse(url="/admin/rates#electricity", status_code=302)
 
 @router.post("/gas/new")
@@ -111,7 +111,7 @@ async def create_gas_submit(request: Request, db: AsyncSession = Depends(get_db)
         "gas_price_per_kwh": gas_price_per_kwh, "vat_pct": vat_pct,
         "dist_fixed": dist_fixed, "dist_variable": dist_variable,
     })
-    await db.commit()
+    await db.flush()
     return RedirectResponse(url="/admin/rates#gas", status_code=302)
 
 
@@ -172,7 +172,7 @@ async def edit_electricity_submit(comp_id: int, request: Request, db: AsyncSessi
         "oze_rate": oze_rate,
         "cogen_rate": cogen_rate,
     })
-    await db.commit()
+    await db.flush()
     return RedirectResponse(url="/admin/rates#electricity", status_code=302)
 
 
@@ -224,5 +224,5 @@ async def edit_gas_submit(comp_id: int, request: Request, db: AsyncSession = Dep
         "dist_fixed": dist_fixed,
         "dist_variable": dist_variable,
     })
-    await db.commit()
+    await db.flush()
     return RedirectResponse(url="/admin/rates#gas", status_code=302)

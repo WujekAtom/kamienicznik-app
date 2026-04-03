@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.auth.dependencies import require_admin
@@ -145,6 +145,20 @@ async def create_billing_bulk(request: Request,
     )
 
 
+@router.post("/delete-billing-bulk")
+async def delete_billing_bulk(request: Request,
+    billing_ids: List[int] = Form(...),
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),):
+
+    if not billing_ids:
+        return RedirectResponse(url="/admin/billing/list", status_code=302)
+
+    billings_to_delete = delete(BillingPeriod).where(BillingPeriod.id.in_(billing_ids))
+    await db.execute(billings_to_delete)
+
+    return RedirectResponse(url="/admin/billing/list", status_code=302)
+
 @router.get("/{bp_id}", response_class=HTMLResponse)
 async def billing_detail(bp_id: int, request: Request, db: AsyncSession = Depends(get_db),
                           current_user: User = Depends(require_admin)):
@@ -167,7 +181,7 @@ async def issue_billing(bp_id: int, db: AsyncSession = Depends(get_db),
     bp = result.scalar_one_or_none()
     if bp and bp.status == BillingStatus.draft:
         bp.status = BillingStatus.issued
-        await db.commit()
+        await db.flush()
     return RedirectResponse(url=f"/admin/billing/{bp_id}", status_code=302)
 
 
@@ -190,7 +204,7 @@ async def add_payment_submit(
         reference_number or None, notes or None, current_user.id
     )
     await recalculate_billing_totals(db, bp)
-    await db.commit()
+    await db.flush()
     return RedirectResponse(url=f"/admin/billing/{bp_id}", status_code=302)
 
 
@@ -206,7 +220,7 @@ async def delete_billing_item(bp_id: int, item_id: int, db: AsyncSession = Depen
     bp = await get_billing_period(db, bp_id)
     if bp:
         await recalculate_billing_totals(db, bp)
-    await db.commit()
+    await db.flush()
     return RedirectResponse(url=f"/admin/billing/{bp_id}", status_code=302)
 
 
@@ -220,7 +234,7 @@ async def edit_billing_period(bp_id: int, db: AsyncSession = Depends(get_db),
         raise HTTPException(404)
     bp.due_date = due_date
     bp.notes = notes or None
-    await db.commit()
+    await db.flush()
     return RedirectResponse(url=f"/admin/billing/{bp_id}", status_code=302)
 
 
@@ -231,7 +245,7 @@ async def revert_to_draft(bp_id: int, db: AsyncSession = Depends(get_db),
     bp = result.scalar_one_or_none()
     if bp and bp.status != BillingStatus.paid:
         bp.status = BillingStatus.draft
-        await db.commit()
+        await db.flush()
     return RedirectResponse(url=f"/admin/billing/{bp_id}", status_code=302)
 
 
@@ -244,6 +258,6 @@ async def delete_billing_period(bp_id: int, db: AsyncSession = Depends(get_db),
         raise HTTPException(404)
     apt_id = bp.apartment_id
     await db.delete(bp)
-    await db.commit()
+    await db.flush()
     target = redirect_to if redirect_to else f"/admin/apartments/{apt_id}"
     return RedirectResponse(url=target, status_code=302)

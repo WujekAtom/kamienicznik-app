@@ -68,7 +68,7 @@ async def edit_reading(reading_id: int, db: AsyncSession = Depends(get_db),
         if prev:
             reading.consumption = reading_value - prev.reading_value
     apt_id = reading.apartment_id
-    await db.commit()
+    await db.flush()
     return RedirectResponse(url=f"/admin/apartments/{apt_id}", status_code=302)
 
 
@@ -89,5 +89,5 @@ async def delete_reading(reading_id: int, db: AsyncSession = Depends(get_db),
         .values(reading_to_id=None, reading_from_id=None)
     )
     await db.delete(reading)
-    await db.commit()
+    await db.flush()
     return RedirectResponse(url=f"/admin/apartments/{apt_id}", status_code=302)

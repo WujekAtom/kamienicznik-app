@@ -160,7 +160,7 @@ async def edit_tenant(apt_id: int, request: Request, db: AsyncSession = Depends(
     if user_account and email:
         user_account.email = email
 
-    await db.commit()
+    await db.flush()
     return RedirectResponse(url=f"/admin/apartments/{apt_id}", status_code=302)
 
 
@@ -170,5 +170,5 @@ async def deactivate_tenant(apt_id: int, db: AsyncSession = Depends(get_db),
     tenant = await get_active_tenant_for_apartment(db, apt_id)
     if tenant:
         tenant.is_active = False
-        await db.commit()
+        await db.flush()
     return RedirectResponse(url=f"/admin/apartments/{apt_id}", status_code=302)

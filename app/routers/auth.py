@@ -83,7 +83,7 @@ async def forgot_password_submit(
         token = generate_reset_token()
         user.reset_token = token
         user.reset_token_expires = datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_TTL_MIN)
-        await db.commit()
+        await db.flush()
 
         reset_link = f"{request.base_url}reset-password?token={token}"
         background_tasks.add_task(send_reset_email, user.email, reset_link)
@@ -151,6 +151,6 @@ async def reset_password_submit(
     user.hashed_password = hash_password(password)
     user.reset_token = None
     user.reset_token_expires = None
-    await db.commit()
+    await db.flush()
 
     return RedirectResponse(url="/login", status_code=302)
