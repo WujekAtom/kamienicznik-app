@@ -239,7 +239,7 @@
           {% if r.photo_path %}
               {% if r.photo_verified %}
                 <span class="badge badge-success" title="Zweryfikowane">✓ OK</span>
-              {% else %}             
+              {% else %}
                 <form action="/admin/meters/{{ r.id }}/verify-photo" method="post" style="display:inline">
                   <input type="hidden" name="status" value="verified">
                   <button type="submit" class="btn btn-ghost btn-xs">Zweryfikuj</button>
