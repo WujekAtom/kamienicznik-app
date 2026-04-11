@@ -30,7 +30,7 @@
       <div class="info-item"><span class="info-label">Czynsz</span><span class="info-value strong">{{ "%.2f"|format(tenant.rent_amount) }} zł/mies.</span></div>
       <div class="info-item"><span class="info-label">Termin płatności</span><span class="info-value">do {{ tenant.payment_due_day }}. każdego miesiąca</span></div>
       <div class="info-item"><span class="info-label">Liczba osób</span><span class="info-value">{{ tenant.occupants }} os. (śmieci)</span></div>
-      <div class="info-item"><span class="info-label">Zaliczka na wodę</span><span class="info-value">{{ "%.2f"|format(tenant.water_advance) }} zł/mies.</span></div>
+
       <div class="info-item"><span class="info-label">Umowa</span>
         <span class="info-value">
           {% if tenant.contract_type.value == 'fixed' %}Na czas określony

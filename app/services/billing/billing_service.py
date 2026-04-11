@@ -11,7 +11,7 @@ from app.models.meter_reading import MeterReading
 from app.models.payment import Payment
 from app.models.utility_rate import UtilityType
 
-from app.crud import billing as billing_crud
+from app.crud import billing_crud as billing_crud
 from app.crud.apartments import get_apartment
 from app.crud.meter_readings import get_readings_for_apartment
 from app.crud.tenants import get_active_tenant_for_apartment
@@ -150,7 +150,7 @@ async def generate_billing(
         if water_rate and cons is not None:
             usage_cost = (cons * water_rate.rate_per_unit).quantize(Decimal("0.01"))
             adv = (
-                tenant.water_advance.quantize(Decimal("0.01"))
+                tenant.water_advance.quantize(Decimal("0.01"))  # to trzeba zmienic
                 if tenant and tenant.water_advance and tenant.water_advance > 0
                 else Decimal("0.00")
             )

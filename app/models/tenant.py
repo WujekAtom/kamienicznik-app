@@ -22,7 +22,7 @@ class Tenant(Base, TimestampMixin):
     rent_amount = Column(Numeric(10, 2), nullable=False, default=0)
     is_active = Column(Boolean, default=True, nullable=False)
     occupants = Column(Integer, default=1, nullable=False)
-    water_advance = Column(Numeric(10, 2), nullable=False, default=0)  # zaliczka na wodę zł/mies.
+    # water_advance = Column(Numeric(10, 2), nullable=False, default=0)  # zaliczka na wodę zł/mies.
     notes = Column(String(1000), nullable=True)
     apartment = relationship("Apartment", back_populates="tenants", lazy="selectin")
     user = relationship("User", back_populates="tenant", foreign_keys="User.tenant_id", uselist=False, lazy="selectin")

@@ -16,7 +16,7 @@ from app.models.billing import BillingPeriod, BillingStatus, BillingItem
 from app.models.payment import Payment, PaymentType
 
 from app.crud.apartments import get_apartment
-from app.crud.billing import (
+from app.crud.billing_crud import (
     create_billing_period,
     get_billing_period,
     add_billing_item,
