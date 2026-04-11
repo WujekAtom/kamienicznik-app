@@ -10,7 +10,7 @@ from app.models.utility_rate import UtilityType
 from app.crud.apartments import get_apartment
 from app.crud.tenants import get_active_tenant_for_apartment
 from app.crud.meter_readings import get_readings_for_apartment, get_last_reading, create_reading
-from app.crud.billing import get_billing_periods_for_apartment
+from app.crud.billing_crud import get_billing_periods_for_apartment
 from app.config import get_settings
 from datetime import date
 from decimal import Decimal

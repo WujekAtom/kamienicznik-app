@@ -23,3 +23,5 @@ class Apartment(Base, TimestampMixin):
                                           foreign_keys="ElectricityComponents.apartment_id", lazy="selectin")
     gas_components = relationship("GasComponents", back_populates="apartment",
                                   foreign_keys="GasComponents.apartment_id", lazy="selectin")
+    utility_advances = relationship("UtilityAdvance", back_populates="apartment",
+                                    cascade="all, delete-orphan")

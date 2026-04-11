@@ -12,7 +12,7 @@ from app.crud.apartments import get_apartments, get_apartment, create_apartment,
 from app.crud.tenants import create_tenant, update_tenant, get_active_tenant_for_apartment
 from app.crud.users import create_tenant_user, regenerate_magic_link
 from app.crud.meter_readings import get_readings_for_apartment
-from app.crud.billing import get_billing_periods_for_apartment
+from app.crud.billing_crud import get_billing_periods_for_apartment
 from datetime import date
 from decimal import Decimal
 
