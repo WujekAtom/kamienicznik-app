@@ -181,6 +181,10 @@ async def create_billing_for_apartment_and_period(
             await add_billing_item(db, bp.id, "water", desc, net_water,
                                    quantity=cons, unit_price=water_rate.rate_per_unit,
                                    reading_from_id=r_from.id, reading_to_id=r_to.id)
+            if adv > 0:
+                desc_adv = (f"Zaliczka na przyszły miesiąc: {float(adv):.2f} zł")
+                await add_billing_item(db, bp.id, "water", desc_adv, adv)
+
 
     # --- PRĄD (składowe z faktury) ---
     if apt.has_electricity:
